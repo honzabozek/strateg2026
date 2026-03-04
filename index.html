@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="cs">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#050505">
+    <title>STRATÉG 2026 PRO</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;700;800&family=Space+Grotesk:wght@700;900&display=swap');
+        
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            background: linear-gradient(135deg, #0a0a0a 0%, #1a1a2e 100%);
+            color: #e5e5e5; 
+            font-family: 'JetBrains Mono', monospace;
+            min-height: 100vh;
+            position: relative;
+            overflow-x: hidden;
+        }
+        
+        /* Animated background grid */
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(rgba(16, 185, 129, 0.03) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(16, 185, 129, 0.03) 1px, transparent 1px);
+            background-size: 50px 50px;
+            animation: gridMove 20s linear infinite;
+            pointer-events: none;
+            z-index: 0;
+        }
+        
+        @keyframes gridMove {
+            0% { transform: translate(0, 0); }
+            100% { transform: translate(50px, 50px); }
+        }
+        
+        .container { position: relative; z-index: 1; }
+        
+        .glass {
+            background: rgba(15, 15, 15, 0.85);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+        }
+        
+        .card {
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            border-left: 3px solid #27272a;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, transparent 0%, rgba(16, 185, 129, 0.05) 100%);
+            opacity: 0;
+            transition: opacity 0.4s ease;
+        }
+        
+        .card:hover::before { opacity: 1; }
+        .card:hover { transform: translateX(4px); }
+        
+        .buy-border { 
+            border-left-color: #10b981 !important; 
+            box-shadow: -10px 0 30px -15px rgba(16, 185, 129, 0.5);
+            animation: pulseGreen 2s ease-in-out infinite;
+        }
+        
+        .sell-border { 
+            border-left-color: #ef4444 !important; 
+            box-shadow: -10px 0 30px -15px rgba(239, 68, 68, 0.5);
+            animation: pulseRed 2s ease-in-out infinite;
+        }
+        
+        @keyframes pulseGreen {
+            0%, 100% { box-shadow: -10px 0 30px -15px rgba(16, 185, 129, 0.3); }
+            50% { box-shadow: -10px 0 40px -10px rgba(16, 185, 129, 0.6); }
+        }
+        
+        @keyframes pulseRed {
+            0%, 100% { box-shadow: -10px 0 30px -15px rgba(239, 68, 68, 0.3); }
+            50% { box-shadow: -10px 0 40px -10px rgba(239, 68, 68, 0.6); }
+        }
+        
+        .input-dark {
+            background: rgba(17, 17, 17, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            color: white;
+            padding: 10px 12px;
+            font-size: 13px;
+            outline: none;
+            width: 100%;
+            transition: all 0.3s ease;
+            font-family: 'JetBrains Mono', monospace;
+        }
+        
+        .input-dark:focus {
+            border-color: #3b82f6;
+            background: rgba(17, 17, 17, 1);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+        
+        .btn-primary {
+            background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px -5px rgba(59, 130, 246, 0.4);
+        }
+        
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        
+        .status-online { animation: statusPulse 2s ease-in-out infinite; }
+        
+        @keyframes statusPulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.6; }
+        }
+        
+        .fade-in {
+            animation: fadeIn 0.6s ease-out forwards;
+            opacity: 0;
+        }
+        
+        @keyframes fadeIn {
+            to { opacity: 1; }
+        }
+        
+        .slide-up {
+            animation: slideUp 0.5s ease-out forwards;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        
+        @keyframes slideUp {
+            to { 
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+        
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid #3b82f6;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+        
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+        
+        .error-shake {
+            animation: shake 0.5s ease-in-out;
+        }
+        
+        @keyframes shake {
+            0%, 100% { transform: translateX(0); }
+            25% { transform: translateX(-10px); }
+            75% { transform: translateX(10px); }
+        }
+        
+        .rsi-indicator {
+            position: relative;
+            height: 6px;
+            background: linear-gradient(90deg, 
+                #ef4444 0%, 
+                #f59e0b 30%, 
+                #3b82f6 50%, 
+                #f59e0b 70%, 
+                #10b981 100%
+            );
+            border-radius: 10px;
+            overflow: visible;
+        }
+        
+        .rsi-marker {
+            position: absolute;
+            width: 4px;
+            height: 16px;
+            background: white;
+            border-radius: 2px;
+            top: -5px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+            transition: left 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        
+        .metric-badge {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container p-4 max-w-md mx-auto pb-32">
+        
+        <!-- Header -->
+        <header class="mb-8 flex justify-between items-center px-2 fade-in">
+            <div>
+                <h1 class="text-3xl font-black text-white tracking-tighter" style="font-family: 'Space Grotesk', sans-serif;">
+                    STRATÉG <span class="text-blue-500 underline decoration-4 underline-offset-4">2026</span>
+                </h1>
+                <p class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1">Investment Terminal v2.0</p>
+            </div>
+            <div class="text-right">
+                <p id="live-clock" class="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">--:--:--</p>
+                <div class="flex items-center gap-2 mt-1">
+                    <div id="sync-indicator" class="w-2 h-2 rounded-full bg-orange-500"></div>
+                    <span id="sync-status" class="text-[8px] font-black text-orange-500 uppercase">Offline</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- AI Verdict Panel -->
+        <div id="ai-verdict" class="glass p-6 mb-6 border-blue-500/20 shadow-xl slide-up" style="animation-delay: 0.1s;">
+            <div class="flex items-center gap-3 mb-3">
+                <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <span class="text-blue-400 text-sm">🎯</span>
+                </div>
+                <h3 class="text-xs font-black text-white uppercase tracking-widest">AI Analýza</h3>
+            </div>
+            <div id="verdict-text" class="text-sm font-semibold leading-relaxed text-zinc-300">
+                <div class="flex items-center gap-2">
+                    <div class="loading-spinner"></div>
+                    <span>Načítám tržní data...</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Stock Cards Container -->
+        <div id="stock-container" class="space-y-4 mb-6"></div>
+
+        <!-- Error Display -->
+        <div id="error-container" class="hidden glass p-4 mb-6 border-red-500/30 bg-red-500/5">
+            <div class="flex items-center gap-2 mb-2">
+                <span class="text-red-500 text-lg">⚠️</span>
+                <h3 class="text-xs font-black text-red-400 uppercase">Chyba</h3>
+            </div>
+            <p id="error-message" class="text-xs text-red-300"></p>
+        </div>
+
+        <!-- Management Panel -->
+        <div class="glass p-6 border-zinc-800 slide-up" style="animation-delay: 0.2s;">
+            <h3 class="text-xs font-black text-white mb-5 uppercase tracking-widest flex items-center gap-2">
+                <span class="bg-blue-600 w-1.5 h-4 block rounded-full"></span> Správa & Simulace
+            </h3>
+            
+            <div class="space-y-6">
+                <!-- Data Entry Section -->
+                <div class="p-5 bg-white/5 rounded-xl space-y-4 border border-white/5">
+                    <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Nastavit nákupní data</p>
+                    <div class="grid grid-cols-3 gap-3">
+                        <select id="edit-ticker" class="input-dark">
+                            <option value="MU">MU</option>
+                            <option value="NOW">NOW</option>
+                            <option value="MSFT">MSFT</option>
+                            <option value="ASML">ASML</option>
+                        </select>
+                        <input type="number" id="edit-avg" step="0.01" placeholder="Prům. $" class="input-dark">
+                        <input type="number" id="edit-shares" step="0.0001" placeholder="Ks" class="input-dark">
+                    </div>
+                    <button onclick="saveMyData()" class="btn-primary w-full text-white text-[10px] font-black py-3 rounded-lg uppercase tracking-widest">
+                        💾 Uložit na server
+                    </button>
+                </div>
+
+                <!-- DCA Simulator -->
+                <div class="space-y-4 pt-4 border-t border-white/5">
+                    <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">DCA Kalkulačka</p>
+                    <div class="grid grid-cols-2 gap-3">
+                        <select id="sim-ticker" class="input-dark py-3">
+                            <option value="MU">Micron (MU)</option>
+                            <option value="NOW">ServiceNow</option>
+                            <option value="MSFT">Microsoft</option>
+                            <option value="ASML">ASML</option>
+                        </select>
+                        <input type="number" id="sim-amount" value="934" placeholder="Částka $" class="input-dark py-3">
+                    </div>
+                    <button onclick="runProSimulation()" class="w-full bg-zinc-800 text-white font-black py-4 rounded-xl text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-700 transition-all">
+                        📊 Vypočítat Break-Even
+                    </button>
+                    <div id="sim-output" class="hidden p-5 bg-blue-600/10 border border-blue-500/20 rounded-2xl text-[11px] text-blue-100"></div>
+                </div>
+
+                <!-- Refresh Button -->
+                <button onclick="forceRefresh()" class="w-full bg-emerald-600/20 text-emerald-400 font-black py-3 rounded-xl text-[10px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">
+                    🔄 Obnovit data
+                </button>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // ===== KONFIGURACE =====
+        const CONFIG = {
+            SERVER_URL: 'https://www.janbozek.cz/strateg2026/api_proxy.php',
+            DATA_URL: 'https://www.janbozek.cz/strateg2026/save_data.php',
+            REFRESH_INTERVAL: 60000, // 1 minuta
+            RSI_PERIOD: 14
+        };
+
+        // ===== GLOBÁLNÍ STATE =====
+        let myData = {
+            "MU": { avg: 407.57, shares: 2.2623 },
+            "NOW": { avg: 0, shares: 0 },
+            "MSFT": { avg: 0, shares: 0 },
+            "ASML": { avg: 0, shares: 0 }
+        };
+        let livePrices = {};
+        let isLoading = false;
+        let refreshInterval = null;
+
+        // ===== UTILITY FUNKCE =====
+        function showError(message) {
+            const errorContainer = document.getElementById('error-container');
+            const errorMessage = document.getElementById('error-message');
+            errorMessage.textContent = message;
+            errorContainer.classList.remove('hidden');
+            errorContainer.classList.add('error-shake');
+            setTimeout(() => errorContainer.classList.remove('error-shake'), 500);
+            
+            setTimeout(() => {
+                errorContainer.classList.add('hidden');
+            }, 5000);
+        }
+
+        function updateClock() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('cs-CZ', { 
+                hour: '2-digit', 
+                minute: '2-digit', 
+                second: '2-digit' 
+            });
+            document.getElementById('live-clock').textContent = timeString;
+        }
+
+        function setLoadingState(loading) {
+            isLoading = loading;
+            const verdictText = document.getElementById('verdict-text');
+            if (loading) {
+                verdictText.innerHTML = '<div class="flex items-center gap-2"><div class="loading-spinner"></div><span>Aktualizujem data...</span></div>';
+            }
+        }
+
+        function updateSyncStatus(online, message = '') {
+            const indicator = document.getElementById('sync-indicator');
+            const status = document.getElementById('sync-status');
+            
+            if (online) {
+                indicator.className = 'w-2 h-2 rounded-full bg-emerald-500 status-online';
+                status.textContent = message || 'Online ✓';
+                status.className = 'text-[8px] font-black text-emerald-500 uppercase';
+            } else {
+                indicator.className = 'w-2 h-2 rounded-full bg-red-500';
+                status.textContent = message || 'Offline';
+                status.className = 'text-[8px] font-black text-red-500 uppercase';
+            }
+        }
+
+        // ===== RSI VÝPOČET =====
+        function calculateRSI(prices, period = 14) {
+            if (prices.length < period + 1) return 50; // Fallback
+            
+            let gains = 0;
+            let losses = 0;
+            
+            // První průměr
+            for (let i = 1; i <= period; i++) {
+                const change = prices[i] - prices[i - 1];
+                if (change > 0) gains += change;
+                else losses += Math.abs(change);
+            }
+            
+            let avgGain = gains / period;
+            let avgLoss = losses / period;
+            
+            // Smoothing pro zbytek
+            for (let i = period + 1; i < prices.length; i++) {
+                const change = prices[i] - prices[i - 1];
+                if (change > 0) {
+                    avgGain = (avgGain * (period - 1) + change) / period;
+                    avgLoss = (avgLoss * (period - 1)) / period;
+                } else {
+                    avgGain = (avgGain * (period - 1)) / period;
+                    avgLoss = (avgLoss * (period - 1) + Math.abs(change)) / period;
+                }
+            }
+            
+            if (avgLoss === 0) return 100;
+            const rs = avgGain / avgLoss;
+            const rsi = 100 - (100 / (1 + rs));
+            
+            return Math.round(rsi);
+        }
+
+        // ===== API KOMUNIKACE =====
+        async function fetchStockData(ticker) {
+            try {
+                // Získání historických dat pro RSI (60 dní)
+                const historyResponse = await fetch(
+                    `${CONFIG.SERVER_URL}?action=candles&symbol=${ticker}&resolution=D&count=60`
+                );
+                
+                if (!historyResponse.ok) throw new Error(`HTTP ${historyResponse.status}`);
+                
+                const historyData = await historyResponse.json();
+                
+                // Získání aktuální ceny a metrik
+                const [quoteRes, metricsRes] = await Promise.all([
+                    fetch(`${CONFIG.SERVER_URL}?action=quote&symbol=${ticker}`),
+                    fetch(`${CONFIG.SERVER_URL}?action=metrics&symbol=${ticker}`)
+                ]);
+                
+                if (!quoteRes.ok || !metricsRes.ok) {
+                    throw new Error('Chyba při načítání dat');
+                }
+                
+                const quote = await quoteRes.json();
+                const metrics = await metricsRes.json();
+                
+                // Výpočet RSI z historických dat
+                let rsi = 50; // Default
+                if (historyData.s === 'ok' && historyData.c && historyData.c.length > 0) {
+                    rsi = calculateRSI(historyData.c, CONFIG.RSI_PERIOD);
+                }
+                
+                return {
+                    symbol: ticker,
+                    price: quote.c || 0,
+                    change: quote.dp || 0,
+                    high52: quote.h || 0,
+                    low52: quote.l || 0,
+                    pe: metrics.metric?.peBasicExclExtraTTM || 0,
+                    peg: (metrics.metric?.peExclExtraTTM / 20) || 0,
+                    rsi: rsi
+                };
+                
+            } catch (error) {
+                console.error(`Chyba pro ${ticker}:`, error);
+                throw error;
+            }
+        }
+
+        async function loadFromServer() {
+            try {
+                const response = await fetch(CONFIG.DATA_URL);
+                if (!response.ok) throw new Error('Server nedostupný');
+                
+                const data = await response.json();
+                if (data && Object.keys(data).length > 0) {
+                    myData = data;
+                    updateSyncStatus(true, 'Synchronizováno');
+                }
+            } catch (error) {
+                console.error("Load error:", error);
+                updateSyncStatus(false, 'Sync selhala');
+            }
+        }
+
+        async function saveToServer() {
+            try {
+                const response = await fetch(CONFIG.DATA_URL, {
+                    method: 'POST',
+                    body: JSON.stringify(myData),
+                    headers: { 'Content-Type': 'application/json' }
+                });
+                
+                if (!response.ok) throw new Error('Uložení selhalo');
+                
+                updateSyncStatus(true, 'Uloženo ✓');
+                setTimeout(() => updateSyncStatus(true), 2000);
+                
+            } catch (error) {
+                showError('Nepodařilo se uložit data na server');
+                updateSyncStatus(false);
+            }
+        }
+
+        // ===== RENDERING =====
+        function renderStockCard(stockData) {
+            const currentMy = myData[stockData.symbol];
+            const pnl = currentMy.shares > 0 
+                ? (((stockData.price - currentMy.avg) / currentMy.avg) * 100).toFixed(2) 
+                : 0;
+            
+            const pnlValue = currentMy.shares > 0
+                ? ((stockData.price - currentMy.avg) * currentMy.shares).toFixed(2)
+                : 0;
+            
+            let borderClass = '';
+            let signalText = '';
+            
+            if (stockData.rsi <= 30) {
+                borderClass = 'buy-border';
+                signalText = '<span class="text-emerald-400 font-black">NÁKUP</span>';
+            } else if (stockData.rsi >= 70) {
+                borderClass = 'sell-border';
+                signalText = '<span class="text-red-400 font-black">PRODEJ</span>';
+            } else {
+                signalText = '<span class="text-zinc-500">HOLD</span>';
+            }
+            
+            return `
+                <div class="glass card p-5 ${borderClass}">
+                    <!-- Header -->
+                    <div class="flex justify-between items-start mb-4">
+                        <div>
+                            <h2 class="text-2xl font-black text-white tracking-tighter" style="font-family: 'Space Grotesk', sans-serif;">
+                                ${stockData.symbol}
+                            </h2>
+                            <div class="flex gap-2 mt-2 flex-wrap">
+                                <span class="metric-badge text-zinc-400">P/E: ${stockData.pe.toFixed(1)}</span>
+                                <span class="metric-badge text-zinc-400">PEG: ${stockData.peg.toFixed(2)}</span>
+                                <span class="metric-badge ${stockData.rsi <= 30 ? 'text-emerald-400' : stockData.rsi >= 70 ? 'text-red-400' : 'text-blue-400'}">
+                                    RSI: ${stockData.rsi}
+                                </span>
+                            </div>
+                        </div>
+                        <div class="text-right">
+                            <div class="text-xl font-black text-white">$${stockData.price.toFixed(2)}</div>
+                            <div class="text-[11px] font-bold ${stockData.change >= 0 ? 'text-emerald-500' : 'text-red-500'}">
+                                ${stockData.change >= 0 ? '+' : ''}${stockData.change.toFixed(2)}%
+                            </div>
+                            ${currentMy.shares > 0 ? `
+                                <div class="mt-2 text-[10px] font-black ${pnl >= 0 ? 'text-emerald-400' : 'text-red-400'}">
+                                    ${pnl >= 0 ? '+' : ''}${pnl}%
+                                </div>
+                                <div class="text-[9px] text-zinc-500">
+                                    ${pnl >= 0 ? '+' : ''}$${pnlValue}
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                    
+                    <!-- RSI Indicator -->
+                    <div class="mb-3">
+                        <div class="flex justify-between items-center mb-1">
+                            <span class="text-[9px] text-zinc-500 font-bold uppercase">RSI Index</span>
+                            ${signalText}
+                        </div>
+                        <div class="rsi-indicator">
+                            <div class="rsi-marker" style="left: ${stockData.rsi}%"></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Portfolio Info -->
+                    ${currentMy.shares > 0 ? `
+                        <div class="mt-4 pt-4 border-t border-white/5 grid grid-cols-2 gap-3 text-[10px]">
+                            <div>
+                                <p class="text-zinc-500 uppercase font-bold">Průměrka</p>
+                                <p class="text-white font-black">$${currentMy.avg.toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p class="text-zinc-500 uppercase font-bold">Počet kusů</p>
+                                <p class="text-white font-black">${currentMy.shares.toFixed(4)}</p>
+                            </div>
+                        </div>
+                    ` : ''}
+                </div>
+            `;
+        }
+
+        function renderVerdict(results) {
+            const verdictEl = document.getElementById('verdict-text');
+            
+            // Najdi nejextrémnější RSI
+            const extremeRSI = results.reduce((prev, curr) => {
+                const prevDist = Math.min(prev.rsi, 100 - prev.rsi);
+                const currDist = Math.min(curr.rsi, 100 - curr.rsi);
+                return currDist < prevDist ? curr : prev;
+            });
+            
+            let verdict = '';
+            
+            if (extremeRSI.rsi <= 25) {
+                verdict = `<span class="text-emerald-400 font-black">🎯 SILNÝ NÁKUPNÍ SIGNÁL:</span> ${extremeRSI.symbol} má RSI ${extremeRSI.rsi}! Extrémně přeprodáno.`;
+            } else if (extremeRSI.rsi <= 35) {
+                verdict = `<span class="text-emerald-400 font-black">📈 NÁKUPNÍ PŘÍLEŽITOST:</span> ${extremeRSI.symbol} s RSI ${extremeRSI.rsi} ukazuje přeprodání.`;
+            } else if (extremeRSI.rsi >= 75) {
+                verdict = `<span class="text-red-400 font-black">⚠️ PŘEPRODÁNO:</span> ${extremeRSI.symbol} má RSI ${extremeRSI.rsi}. Zvažte profit-taking.`;
+            } else if (extremeRSI.rsi >= 65) {
+                verdict = `<span class="text-yellow-400 font-black">⚡ OPATRNĚ:</span> ${extremeRSI.symbol} s RSI ${extremeRSI.rsi} vstupuje do překoupeného pásma.`;
+            } else {
+                const avgRSI = Math.round(results.reduce((sum, s) => sum + s.rsi, 0) / results.length);
+                verdict = `<span class="text-blue-400 font-black">✓ NEUTRÁLNÍ TRH:</span> Průměrné RSI ${avgRSI}. Čekáme na signál.`;
+            }
+            
+            verdictEl.innerHTML = verdict;
+        }
+
+        async function updateTerminal() {
+            if (isLoading) return;
+            
+            setLoadingState(true);
+            updateClock();
+            
+            const container = document.getElementById('stock-container');
+            const tickers = Object.keys(myData);
+            let results = [];
+            let failedCount = 0;
+            
+            for (const ticker of tickers) {
+                try {
+                    const data = await fetchStockData(ticker);
+                    livePrices[ticker] = data.price;
+                    results.push(data);
+                    
+                    // Postupné renderování
+                    if (results.length === 1) {
+                        container.innerHTML = '';
+                    }
+                    container.innerHTML += renderStockCard(data);
+                    
+                } catch (error) {
+                    console.error(`Chyba pro ${ticker}:`, error);
+                    failedCount++;
+                }
+            }
+            
+            if (failedCount === tickers.length) {
+                showError('Nepodařilo se načíst žádná data. Zkontrolujte připojení.');
+                updateSyncStatus(false, 'API Error');
+            } else if (failedCount > 0) {
+                showError(`Nepodařilo se načíst ${failedCount} z ${tickers.length} akcií.`);
+            }
+            
+            if (results.length > 0) {
+                renderVerdict(results);
+                updateSyncStatus(true, 'Aktualizováno');
+            }
+            
+            setLoadingState(false);
+        }
+
+        // ===== USER ACTIONS =====
+        function saveMyData() {
+            const ticker = document.getElementById('edit-ticker').value;
+            const avg = parseFloat(document.getElementById('edit-avg').value);
+            const shares = parseFloat(document.getElementById('edit-shares').value);
+            
+            if (isNaN(avg) || isNaN(shares)) {
+                showError('Zadejte platná čísla!');
+                return;
+            }
+            
+            if (avg < 0 || shares < 0) {
+                showError('Hodnoty nemohou být záporné!');
+                return;
+            }
+            
+            myData[ticker] = { avg, shares };
+            updateTerminal();
+            saveToServer();
+            
+            // Clear inputs
+            document.getElementById('edit-avg').value = '';
+            document.getElementById('edit-shares').value = '';
+        }
+
+        function runProSimulation() {
+            const ticker = document.getElementById('sim-ticker').value;
+            const amount = parseFloat(document.getElementById('sim-amount').value);
+            const output = document.getElementById('sim-output');
+            
+            if (isNaN(amount) || amount <= 0) {
+                showError('Zadejte platnou částku pro simulaci!');
+                return;
+            }
+            
+            const price = livePrices[ticker];
+            if (!price) {
+                showError('Nejprve načtěte aktuální ceny!');
+                return;
+            }
+            
+            const current = myData[ticker];
+            const newShares = amount / price;
+            const totalShares = current.shares + newShares;
+            const newAvg = current.shares > 0 
+                ? ((current.shares * current.avg) + amount) / totalShares 
+                : price;
+            
+            const breakEvenChange = (((newAvg - price) / price) * 100);
+            const breakEvenPrice = newAvg;
+            
+            output.innerHTML = `
+                <div class="space-y-4">
+                    <div class="flex justify-between items-center pb-3 border-b border-white/10">
+                        <span class="font-bold text-zinc-400">Nová průměrka:</span>
+                        <span class="text-white font-black text-lg">$${newAvg.toFixed(2)}</span>
+                    </div>
+                    <div class="flex justify-between items-center pb-3 border-b border-white/10">
+                        <span class="font-bold text-zinc-400">Nových kusů:</span>
+                        <span class="text-white font-black">+${newShares.toFixed(4)}</span>
+                    </div>
+                    <div class="flex justify-between items-center pb-3 border-b border-white/10">
+                        <span class="font-bold text-zinc-400">Celkem kusů:</span>
+                        <span class="text-white font-black">${totalShares.toFixed(4)}</span>
+                    </div>
+                    <div class="bg-blue-500/20 p-4 rounded-lg">
+                        <p class="text-emerald-400 font-bold mb-2 italic uppercase text-[10px]">🎯 Break-Even Target</p>
+                        <p class="text-zinc-300 text-xs">
+                            Trh musí ${breakEvenChange > 0 ? 'vzrůst' : 'klesnout'} o 
+                            <span class="text-white font-black text-base">${Math.abs(breakEvenChange).toFixed(2)}%</span> 
+                            na cenu <span class="text-emerald-400 font-black">$${breakEvenPrice.toFixed(2)}</span>
+                        </p>
+                    </div>
+                </div>
+            `;
+            output.classList.remove('hidden');
+        }
+
+        function forceRefresh() {
+            updateTerminal();
+        }
+
+        // ===== INITIALIZATION =====
+        async function init() {
+            updateClock();
+            setInterval(updateClock, 1000);
+            
+            await loadFromServer();
+            await updateTerminal();
+            
+            // Auto-refresh každou minutu
+            refreshInterval = setInterval(updateTerminal, CONFIG.REFRESH_INTERVAL);
+        }
+
+        // Spuštění při načtení stránky
+        window.addEventListener('load', init);
+        
+        // Cleanup při zavření
+        window.addEventListener('beforeunload', () => {
+            if (refreshInterval) clearInterval(refreshInterval);
+        });
+    </script>
+</body>
+</html>
