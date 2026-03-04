@@ -1,0 +1,29 @@
+name: 🚀 Deploy to Forpsi
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: 📦 FTP Deploy
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 📥 Checkout code
+      uses: actions/checkout@v3
+    
+    - name: 🚀 Deploy via FTP
+      uses: SamKirkland/FTP-Deploy-Action@4.3.3
+      with:
+        server: ftp.janbozek.cz
+        username: ${{ secrets.FTP_USERNAME }}
+        password: ${{ secrets.FTP_PASSWORD }}
+        server-dir: /www/strateg2026/
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          **/backups/**
+          portfolio.json
