@@ -18,6 +18,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 // ==== KONFIGURACE ====
 const FINNHUB_API_KEY = 'd6avddhr01qnr27j2em0d6avddhr01qnr27j2emg';
 const TWELVE_DATA_API_KEY = 'adc12bccbf7a49bd9f61c1c56e8a7065';
+const ALPHA_VANTAGE_API_KEY = 'demo'; // Free: demo key for testing, replace with real key
 const CACHE_DURATION = 60; // Cache v sekundách
 const RATE_LIMIT = 60; // Max požadavků za minutu
 const ALLOWED_SYMBOLS = ['MU', 'NOW', 'MSFT', 'ASML'];
@@ -397,6 +398,79 @@ function fetchTwelveDataCandles($symbol, $count = 60) {
         '_source' => 'twelvedata'
     ];
 }
+
+function fetchAlphaVantageCandles($symbol, $count = 60) {
+    $url = "https://www.alphavantage.co/query?function=TIME_SERIES_DAILY&symbol={$symbol}&apikey=" . ALPHA_VANTAGE_API_KEY . "&outputsize=compact";
+    
+    $response = curlRequest($url);
+    if (!$response) {
+        return null;
+    }
+    
+    $data = json_decode($response, true);
+    if (!isset($data['Time Series (Daily)'])) {
+        return null;
+    }
+    
+    $timeSeries = $data['Time Series (Daily)'];
+    $dates = array_keys($timeSeries);
+    
+    // Sort by date (oldest first)
+    sort($dates);
+    
+    // Take last N days
+    if (count($dates) > $count) {
+        $dates = array_slice($dates, -$count);
+    }
+    
+    $o = [];
+    $h = [];
+    $l = [];
+    $c = [];
+    $t = [];
+    $v = [];
+    
+    foreach ($dates as $date) {
+        $bar = $timeSeries[$date];
+        
+        $timestamp = strtotime($date . ' 00:00:00 UTC');
+        if ($timestamp === false) {
+            continue;
+        }
+        
+        $open = (float)($bar['1. open'] ?? 0);
+        $high = (float)($bar['2. high'] ?? 0);
+        $low = (float)($bar['3. low'] ?? 0);
+        $close = (float)($bar['4. close'] ?? 0);
+        $volume = (float)($bar['5. volume'] ?? 0);
+        
+        if ($close <= 0) {
+            continue;
+        }
+        
+        $o[] = $open;
+        $h[] = $high;
+        $l[] = $low;
+        $c[] = $close;
+        $t[] = $timestamp;
+        $v[] = $volume;
+    }
+    
+    if (count($c) < 2) {
+        return null;
+    }
+    
+    return [
+        's' => 'ok',
+        'o' => $o,
+        'h' => $h,
+        'l' => $l,
+        'c' => $c,
+        't' => $t,
+        'v' => $v,
+        '_source' => 'alphavantage'
+    ];
+}
 try {
     $cacheKey = getCacheKey($action, $symbol);
     $cachedData = getCache($cacheKey);
@@ -455,10 +529,10 @@ try {
                 || count($candleData['c']) < 2;
 
             if ($needsFallback) {
-                // Fallback chain: Yahoo -> Stooq -> TwelveData
-                $fallbackData = fetchYahooCandles($symbol, $count);
+                // Fallback chain: Alpha Vantage -> Yahoo -> Twelve Data
+                $fallbackData = fetchAlphaVantageCandles($symbol, $count);
                 if ($fallbackData === null) {
-                    $fallbackData = fetchStooqCandles($symbol, $count);
+                    $fallbackData = fetchYahooCandles($symbol, $count);
                 }
                 if ($fallbackData === null) {
                     $fallbackData = fetchTwelveDataCandles($symbol, $count);
