@@ -448,7 +448,7 @@
                 const metrics = await metricsRes.json();
                 
                 // Výpočet RSI z historických dat
-                let rsi = 50; // Default
+                let rsi = null; // null znamená nedostupné data
                 if (historyData.s === 'ok' && historyData.c && historyData.c.length > 0) {
                     rsi = calculateRSI(historyData.c, CONFIG.RSI_PERIOD);
                 }
@@ -519,14 +519,18 @@
             let borderClass = '';
             let signalText = '';
             
-            if (stockData.rsi <= 30) {
-                borderClass = 'buy-border';
-                signalText = '<span class="text-emerald-400 font-black">NÁKUP</span>';
-            } else if (stockData.rsi >= 70) {
-                borderClass = 'sell-border';
-                signalText = '<span class="text-red-400 font-black">PRODEJ</span>';
+            if (stockData.rsi !== null) {
+                if (stockData.rsi <= 30) {
+                    borderClass = 'buy-border';
+                    signalText = '<span class="text-emerald-400 font-black">NÁKUP</span>';
+                } else if (stockData.rsi >= 70) {
+                    borderClass = 'sell-border';
+                    signalText = '<span class="text-red-400 font-black">PRODEJ</span>';
+                } else {
+                    signalText = '<span class="text-zinc-500">HOLD</span>';
+                }
             } else {
-                signalText = '<span class="text-zinc-500">HOLD</span>';
+                signalText = '<span class="text-zinc-500 text-xs">čekání na data</span>';
             }
             
             return `
@@ -540,8 +544,8 @@
                             <div class="flex gap-2 mt-2 flex-wrap">
                                 <span class="metric-badge text-zinc-400">P/E: ${stockData.pe.toFixed(1)}</span>
                                 <span class="metric-badge text-zinc-400">PEG: ${stockData.peg.toFixed(2)}</span>
-                                <span class="metric-badge ${stockData.rsi <= 30 ? 'text-emerald-400' : stockData.rsi >= 70 ? 'text-red-400' : 'text-blue-400'}">
-                                    RSI: ${stockData.rsi}
+                                <span class="metric-badge ${stockData.rsi === null ? 'text-zinc-500' : stockData.rsi <= 30 ? 'text-emerald-400' : stockData.rsi >= 70 ? 'text-red-400' : 'text-blue-400'}">
+                                    RSI: ${stockData.rsi === null ? 'N/A' : Math.round(stockData.rsi)}
                                 </span>
                             </div>
                         </div>
@@ -567,9 +571,13 @@
                             <span class="text-[9px] text-zinc-500 font-bold uppercase">RSI Index</span>
                             ${signalText}
                         </div>
-                        <div class="rsi-indicator">
-                            <div class="rsi-marker" style="left: ${stockData.rsi}%"></div>
-                        </div>
+                        ${stockData.rsi !== null ? `
+                            <div class="rsi-indicator">
+                                <div class="rsi-marker" style="left: ${Math.min(Math.max(stockData.rsi, 0), 100)}%"></div>
+                            </div>
+                        ` : `
+                            <div class="text-[10px] text-zinc-500 italic">Data nejsou dostupná</div>
+                        `}
                     </div>
                     
                     <!-- Portfolio Info -->
@@ -592,8 +600,16 @@
         function renderVerdict(results) {
             const verdictEl = document.getElementById('verdict-text');
             
+            // Filtruj pouze akcie s dostupným RSI
+            const validResults = results.filter(r => r.rsi !== null);
+            
+            if (validResults.length === 0) {
+                verdictEl.innerHTML = '<span class="text-zinc-500">Čekání na data... RSI není ještě dostupné pro všechny akcie.</span>';
+                return;
+            }
+            
             // Najdi nejextrémnější RSI
-            const extremeRSI = results.reduce((prev, curr) => {
+            const extremeRSI = validResults.reduce((prev, curr) => {
                 const prevDist = Math.min(prev.rsi, 100 - prev.rsi);
                 const currDist = Math.min(curr.rsi, 100 - curr.rsi);
                 return currDist < prevDist ? curr : prev;
@@ -602,15 +618,15 @@
             let verdict = '';
             
             if (extremeRSI.rsi <= 25) {
-                verdict = `<span class="text-emerald-400 font-black">🎯 SILNÝ NÁKUPNÍ SIGNÁL:</span> ${extremeRSI.symbol} má RSI ${extremeRSI.rsi}! Extrémně přeprodáno.`;
+                verdict = `<span class="text-emerald-400 font-black">🎯 SILNÝ NÁKUPNÍ SIGNÁL:</span> ${extremeRSI.symbol} má RSI ${Math.round(extremeRSI.rsi)}! Extrémně přeprodáno.`;
             } else if (extremeRSI.rsi <= 35) {
-                verdict = `<span class="text-emerald-400 font-black">📈 NÁKUPNÍ PŘÍLEŽITOST:</span> ${extremeRSI.symbol} s RSI ${extremeRSI.rsi} ukazuje přeprodání.`;
+                verdict = `<span class="text-emerald-400 font-black">📈 NÁKUPNÍ PŘÍLEŽITOST:</span> ${extremeRSI.symbol} s RSI ${Math.round(extremeRSI.rsi)} ukazuje přeprodání.`;
             } else if (extremeRSI.rsi >= 75) {
-                verdict = `<span class="text-red-400 font-black">⚠️ PŘEPRODÁNO:</span> ${extremeRSI.symbol} má RSI ${extremeRSI.rsi}. Zvažte profit-taking.`;
+                verdict = `<span class="text-red-400 font-black">⚠️ PŘEPRODÁNO:</span> ${extremeRSI.symbol} má RSI ${Math.round(extremeRSI.rsi)}. Zvažte profit-taking.`;
             } else if (extremeRSI.rsi >= 65) {
-                verdict = `<span class="text-yellow-400 font-black">⚡ OPATRNĚ:</span> ${extremeRSI.symbol} s RSI ${extremeRSI.rsi} vstupuje do překoupeného pásma.`;
+                verdict = `<span class="text-yellow-400 font-black">⚡ OPATRNĚ:</span> ${extremeRSI.symbol} s RSI ${Math.round(extremeRSI.rsi)} vstupuje do překoupeného pásma.`;
             } else {
-                const avgRSI = Math.round(results.reduce((sum, s) => sum + s.rsi, 0) / results.length);
+                const avgRSI = Math.round(validResults.reduce((sum, s) => sum + s.rsi, 0) / validResults.length);
                 verdict = `<span class="text-blue-400 font-black">✓ NEUTRÁLNÍ TRH:</span> Průměrné RSI ${avgRSI}. Čekáme na signál.`;
             }
             
