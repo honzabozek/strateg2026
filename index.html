@@ -294,14 +294,10 @@
                 <div class="p-5 bg-white/5 rounded-xl space-y-4 border border-white/5">
                     <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Nastavit nákupní data</p>
                     <div class="grid grid-cols-3 gap-3">
-                        <select id="edit-ticker" class="input-dark">
-                            <option value="MU">MU</option>
-                            <option value="NOW">NOW</option>
-                            <option value="MSFT">MSFT</option>
-                            <option value="ASML">ASML</option>
+                        <select id="edit-ticker" class="input-dark" title="Ticker pro úpravu pozice">
                         </select>
-                        <input type="number" id="edit-avg" step="0.01" placeholder="Prům. $" class="input-dark">
-                        <input type="number" id="edit-shares" step="0.0001" placeholder="Ks" class="input-dark">
+                        <input type="text" id="edit-avg" placeholder="Prům. $ (např. 406,62)" class="input-dark">
+                        <input type="text" id="edit-shares" placeholder="Ks (např. 2,2623)" class="input-dark">
                     </div>
                     <button onclick="saveMyData()" class="btn-primary w-full text-white text-[10px] font-black py-3 rounded-lg uppercase tracking-widest">
                         💾 Uložit na server
@@ -312,13 +308,9 @@
                 <div class="space-y-4 pt-4 border-t border-white/5">
                     <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">DCA Kalkulačka</p>
                     <div class="grid grid-cols-2 gap-3">
-                        <select id="sim-ticker" class="input-dark py-3">
-                            <option value="MU">Micron (MU)</option>
-                            <option value="NOW">ServiceNow</option>
-                            <option value="MSFT">Microsoft</option>
-                            <option value="ASML">ASML</option>
+                        <select id="sim-ticker" class="input-dark py-3" title="Ticker pro DCA simulaci">
                         </select>
-                        <input type="number" id="sim-amount" value="934" placeholder="Částka $" class="input-dark py-3">
+                        <input type="text" id="sim-amount" value="934" placeholder="Částka $" class="input-dark py-3">
                     </div>
                     <button onclick="runProSimulation()" class="w-full bg-zinc-800 text-white font-black py-4 rounded-xl text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-700 transition-all">
                         📊 Vypočítat Break-Even
@@ -354,10 +346,12 @@
             'GEN', 'EVD', 'HOOD', 'LMND', 'COIN', 'SPPW', 'CEZ'
         ];
         
-        let myData = WATCHLIST.reduce((acc, sym) => {
+        const DEFAULT_PORTFOLIO = WATCHLIST.reduce((acc, sym) => {
             acc[sym] = { avg: sym === 'MU' ? 407.57 : 0, shares: sym === 'MU' ? 2.2623 : 0 };
             return acc;
         }, {});
+
+        let myData = { ...DEFAULT_PORTFOLIO };
         
         let livePrices = {};
         let isLoading = false;
@@ -397,6 +391,46 @@
             if (loading) {
                 verdictText.innerHTML = '<div class="flex items-center gap-2"><div class="loading-spinner"></div><span>Aktualizujem data...</span></div>';
             }
+        }
+
+        function parseLocaleNumber(value) {
+            if (value === null || value === undefined) return NaN;
+            const normalized = String(value).trim().replace(/\s+/g, '').replace(',', '.');
+            return parseFloat(normalized);
+        }
+
+        function normalizePortfolioData(data) {
+            const normalized = { ...DEFAULT_PORTFOLIO };
+            if (!data || typeof data !== 'object') return normalized;
+
+            for (const symbol of WATCHLIST) {
+                const src = data[symbol];
+                if (!src) continue;
+                const avg = Number(src.avg);
+                const shares = Number(src.shares);
+                normalized[symbol] = {
+                    avg: Number.isFinite(avg) && avg >= 0 ? avg : 0,
+                    shares: Number.isFinite(shares) && shares >= 0 ? shares : 0
+                };
+            }
+
+            return normalized;
+        }
+
+        function populateTickerSelects() {
+            const editTicker = document.getElementById('edit-ticker');
+            const simTicker = document.getElementById('sim-ticker');
+
+            editTicker.innerHTML = WATCHLIST
+                .map(symbol => `<option value="${symbol}">${symbol}</option>`)
+                .join('');
+
+            simTicker.innerHTML = WATCHLIST
+                .map(symbol => `<option value="${symbol}">${getStockName(symbol)} (${symbol})</option>`)
+                .join('');
+
+            editTicker.value = 'MU';
+            simTicker.value = 'MU';
         }
 
         function updateSyncStatus(online, message = '') {
@@ -568,7 +602,7 @@
                 
                 const data = await response.json();
                 if (data && Object.keys(data).length > 0) {
-                    myData = data;
+                    myData = normalizePortfolioData(data);
                     updateSyncStatus(true, 'Synchronizováno');
                 }
             } catch (error) {
@@ -598,7 +632,7 @@
 
         // ===== RENDERING =====
         function renderStockCard(stockData) {
-            const currentMy = myData[stockData.symbol];
+            const currentMy = myData[stockData.symbol] || { avg: 0, shares: 0 };
             const pnl = currentMy.shares > 0 
                 ? (((stockData.price - currentMy.avg) / currentMy.avg) * 100).toFixed(2) 
                 : 0;
@@ -724,6 +758,40 @@
             } else {
                 const avgRSI = Math.round(validResults.reduce((sum, s) => sum + s.rsi, 0) / validResults.length);
                 verdict = `<span class="text-blue-400 font-black">✓ NEUTRÁLNÍ TRH:</span> Průměrné RSI ${avgRSI}. Čekáme na signál.`;
+            }
+
+            const myPositions = results
+                .map(stock => {
+                    const position = myData[stock.symbol] || { avg: 0, shares: 0 };
+                    const invested = position.avg * position.shares;
+                    const currentValue = stock.price * position.shares;
+                    const pnlValue = currentValue - invested;
+
+                    return {
+                        symbol: stock.symbol,
+                        shares: position.shares,
+                        avg: position.avg,
+                        price: stock.price,
+                        invested,
+                        currentValue,
+                        pnlValue,
+                        pnlPct: position.avg > 0 ? ((stock.price - position.avg) / position.avg) * 100 : 0
+                    };
+                })
+                .filter(p => p.shares > 0);
+
+            if (myPositions.length > 0) {
+                const primary = myPositions.sort((a, b) => Math.abs(b.pnlValue) - Math.abs(a.pnlValue))[0];
+                const pnlClass = primary.pnlValue >= 0 ? 'text-emerald-400' : 'text-red-400';
+                const pnlPrefix = primary.pnlValue >= 0 ? '+' : '';
+
+                verdict += `
+                    <div class="mt-4 p-3 rounded-xl bg-white/5 border border-white/10 text-xs">
+                        <div class="text-zinc-300 mb-1"><span class="font-black text-white">Moje pozice ${primary.symbol}:</span> ${primary.shares.toFixed(4)} ks, průměr $${primary.avg.toFixed(2)}, aktuálně $${primary.price.toFixed(2)}</div>
+                        <div class="text-zinc-400">Investováno: <span class="text-white font-black">$${primary.invested.toFixed(2)}</span> | Aktuální hodnota: <span class="text-white font-black">$${primary.currentValue.toFixed(2)}</span></div>
+                        <div class="${pnlClass} font-black">Výsledek: ${pnlPrefix}$${primary.pnlValue.toFixed(2)} (${pnlPrefix}${primary.pnlPct.toFixed(2)}%)</div>
+                    </div>
+                `;
             }
             
             verdictEl.innerHTML = verdict;
@@ -934,8 +1002,8 @@
         // ===== USER ACTIONS =====
         function saveMyData() {
             const ticker = document.getElementById('edit-ticker').value;
-            const avg = parseFloat(document.getElementById('edit-avg').value);
-            const shares = parseFloat(document.getElementById('edit-shares').value);
+            const avg = parseLocaleNumber(document.getElementById('edit-avg').value);
+            const shares = parseLocaleNumber(document.getElementById('edit-shares').value);
             
             if (isNaN(avg) || isNaN(shares)) {
                 showError('Zadejte platná čísla!');
@@ -958,7 +1026,7 @@
 
         function runProSimulation() {
             const ticker = document.getElementById('sim-ticker').value;
-            const amount = parseFloat(document.getElementById('sim-amount').value);
+            const amount = parseLocaleNumber(document.getElementById('sim-amount').value);
             const output = document.getElementById('sim-output');
             
             if (isNaN(amount) || amount <= 0) {
@@ -1017,6 +1085,7 @@
         async function init() {
             updateClock();
             setInterval(updateClock, 1000);
+            populateTickerSelects();
             
             await loadFromServer();
             await updateTerminal();

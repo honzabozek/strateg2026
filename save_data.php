@@ -19,6 +19,14 @@ const DATA_FILE = __DIR__ . '/portfolio.json';
 const AUTH_TOKEN = 'tvuj_tajny_token_2026'; // ZMĚŇ NA VLASTNÍ SILNÝ TOKEN!
 const MAX_FILE_SIZE = 10240; // 10KB limit
 const BACKUP_DIR = __DIR__ . '/backups/';
+const ALLOWED_SYMBOLS = [
+    'MU', 'NOW', 'MSFT', 'ASML', 'ASM', 'SMCI', 'TSM', 'AVGO',
+    'APLD', 'NBIS', 'PLTR', 'IONQ', 'RKLB', 'LUNR', 'OKLO',
+    'ISRG', 'TSLA', 'BEAM', 'MELI', 'AFRM', 'UPST', 'CRWD',
+    'APP', 'SNOW', 'NU', 'TTD', 'NET', 'GRAB', 'ADBE', 'ADYEN',
+    'DUOL', 'MQ', 'DAVE', 'BKKT', 'FOUR', 'FLYW', 'TOST', 'ALE',
+    'GEN', 'EVD', 'HOOD', 'LMND', 'COIN', 'SPPW', 'CEZ'
+];
 
 // ==== AUTENTIZACE (VOLITELNÉ) ====
 // Pokud chceš autentizaci, odkomentuj následující řádky:
@@ -37,11 +45,9 @@ function validatePortfolioData($data) {
         return false;
     }
     
-    $allowedSymbols = ['MU', 'NOW', 'MSFT', 'ASML'];
-    
     foreach ($data as $symbol => $values) {
         // Kontrola tickeru
-        if (!in_array($symbol, $allowedSymbols)) {
+        if (!in_array($symbol, ALLOWED_SYMBOLS, true)) {
             return false;
         }
         
@@ -61,6 +67,40 @@ function validatePortfolioData($data) {
     }
     
     return true;
+}
+
+function getDefaultPortfolio() {
+    $defaults = [];
+    foreach (ALLOWED_SYMBOLS as $symbol) {
+        $defaults[$symbol] = ['avg' => 0, 'shares' => 0];
+    }
+
+    $defaults['MU'] = ['avg' => 407.57, 'shares' => 2.2623];
+    return $defaults;
+}
+
+function normalizePortfolio($portfolio) {
+    $normalized = getDefaultPortfolio();
+
+    if (!is_array($portfolio)) {
+        return $normalized;
+    }
+
+    foreach (ALLOWED_SYMBOLS as $symbol) {
+        if (!isset($portfolio[$symbol]) || !is_array($portfolio[$symbol])) {
+            continue;
+        }
+
+        $avg = isset($portfolio[$symbol]['avg']) && is_numeric($portfolio[$symbol]['avg']) ? (float)$portfolio[$symbol]['avg'] : 0;
+        $shares = isset($portfolio[$symbol]['shares']) && is_numeric($portfolio[$symbol]['shares']) ? (float)$portfolio[$symbol]['shares'] : 0;
+
+        $normalized[$symbol] = [
+            'avg' => $avg >= 0 ? $avg : 0,
+            'shares' => $shares >= 0 ? $shares : 0
+        ];
+    }
+
+    return $normalized;
 }
 
 function createBackup($data) {
@@ -91,12 +131,7 @@ try {
         // ČTENÍ DAT
         if (!file_exists(DATA_FILE)) {
             // Inicializace s výchozími daty
-            $defaultData = [
-                "MU" => ["avg" => 407.57, "shares" => 2.2623],
-                "NOW" => ["avg" => 0, "shares" => 0],
-                "MSFT" => ["avg" => 0, "shares" => 0],
-                "ASML" => ["avg" => 0, "shares" => 0]
-            ];
+            $defaultData = getDefaultPortfolio();
             
             file_put_contents(DATA_FILE, json_encode($defaultData));
             echo json_encode($defaultData);
@@ -114,8 +149,8 @@ try {
         if (json_last_error() !== JSON_ERROR_NONE) {
             throw new Exception('Corrupted data file');
         }
-        
-        echo json_encode($portfolio);
+
+        echo json_encode(normalizePortfolio($portfolio));
         
     } elseif ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // ZÁPIS DAT
@@ -136,6 +171,8 @@ try {
             echo json_encode(['error' => 'Invalid portfolio data']);
             exit;
         }
+
+        $newData = normalizePortfolio($newData);
         
         // Vytvoření zálohy před uložením
         if (file_exists(DATA_FILE)) {
