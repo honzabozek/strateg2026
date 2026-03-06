@@ -319,7 +319,84 @@ function fetchYahooCandles($symbol, $count = 60) {
     ];
 }
 
-// ==== REQUEST HANDLING ====
+function fetchTwelveDataCandles($symbol, $count = 60) {
+    $response = callTwelveData('time_series', [
+        'symbol' => $symbol,
+        'interval' => '1day',
+        'outputsize' => min($count, 5000),
+        'type' => 'stocks'
+    ]);
+
+    if (!is_array($response) || !isset($response['data'])) {
+        return null;
+    }
+
+    $data = $response['data'];
+    if (!is_array($data) || count($data) < 2) {
+        return null;
+    }
+
+    $o = [];
+    $h = [];
+    $l = [];
+    $c = [];
+    $t = [];
+    $v = [];
+
+    foreach ($data as $bar) {
+        if (!isset($bar['datetime']) || !isset($bar['close'])) {
+            continue;
+        }
+
+        $timestamp = strtotime($bar['datetime']);
+        if ($timestamp === false) {
+            continue;
+        }
+
+        $close = (float)($bar['close'] ?? 0);
+        $open = (float)($bar['open'] ?? $close);
+        $high = (float)($bar['high'] ?? $close);
+        $low = (float)($bar['low'] ?? $close);
+        $volume = (float)($bar['volume'] ?? 0);
+
+        if (!is_numeric($close) || $close <= 0) {
+            continue;
+        }
+
+        $o[] = $open;
+        $h[] = $high;
+        $l[] = $low;
+        $c[] = $close;
+        $t[] = (int)$timestamp;
+        $v[] = $volume;
+    }
+
+    if (count($c) < 2) {
+        return null;
+    }
+
+    // Keep only the requested count
+    if (count($c) > $count) {
+        $offset = count($c) - $count;
+        $o = array_slice($o, $offset);
+        $h = array_slice($h, $offset);
+        $l = array_slice($l, $offset);
+        $c = array_slice($c, $offset);
+        $t = array_slice($t, $offset);
+        $v = array_slice($v, $offset);
+    }
+
+    return [
+        's' => 'ok',
+        'o' => $o,
+        'h' => $h,
+        'l' => $l,
+        'c' => $c,
+        't' => $t,
+        'v' => $v,
+        '_source' => 'twelvedata'
+    ];
+}
 try {
     $cacheKey = getCacheKey($action, $symbol);
     $cachedData = getCache($cacheKey);
@@ -378,9 +455,13 @@ try {
                 || count($candleData['c']) < 2;
 
             if ($needsFallback) {
+                // Fallback chain: Yahoo -> Stooq -> TwelveData
                 $fallbackData = fetchYahooCandles($symbol, $count);
                 if ($fallbackData === null) {
                     $fallbackData = fetchStooqCandles($symbol, $count);
+                }
+                if ($fallbackData === null) {
+                    $fallbackData = fetchTwelveDataCandles($symbol, $count);
                 }
                 if ($fallbackData !== null) {
                     $candleData = $fallbackData;
