@@ -115,6 +115,92 @@ function callFinnhub($endpoint, $params = []) {
     return $data;
 }
 
+function getStooqSymbol($symbol) {
+    return strtolower($symbol) . '.us';
+}
+
+function fetchStooqCandles($symbol, $count = 60) {
+    $stooqSymbol = getStooqSymbol($symbol);
+    $url = "https://stooq.com/q/d/l/?s={$stooqSymbol}&i=d";
+
+    $context = stream_context_create([
+        'http' => [
+            'timeout' => 10,
+            'ignore_errors' => true
+        ]
+    ]);
+
+    $csv = @file_get_contents($url, false, $context);
+    if ($csv === false || trim($csv) === '') {
+        return null;
+    }
+
+    $lines = preg_split('/\r\n|\n|\r/', trim($csv));
+    if (!$lines || count($lines) < 3) {
+        return null;
+    }
+
+    $rows = array_slice($lines, 1);
+    $rows = array_values(array_filter($rows, function($line) {
+        return trim($line) !== '';
+    }));
+
+    if (count($rows) === 0) {
+        return null;
+    }
+
+    if (count($rows) > $count) {
+        $rows = array_slice($rows, -$count);
+    }
+
+    $o = [];
+    $h = [];
+    $l = [];
+    $c = [];
+    $t = [];
+    $v = [];
+
+    foreach ($rows as $row) {
+        $parts = str_getcsv($row);
+        if (count($parts) < 6) {
+            continue;
+        }
+
+        [$date, $open, $high, $low, $close, $volume] = $parts;
+
+        if (!is_numeric($open) || !is_numeric($high) || !is_numeric($low) || !is_numeric($close)) {
+            continue;
+        }
+
+        $timestamp = strtotime($date . ' 00:00:00 UTC');
+        if ($timestamp === false) {
+            continue;
+        }
+
+        $o[] = (float)$open;
+        $h[] = (float)$high;
+        $l[] = (float)$low;
+        $c[] = (float)$close;
+        $t[] = (int)$timestamp;
+        $v[] = is_numeric($volume) ? (float)$volume : 0.0;
+    }
+
+    if (count($c) < 2) {
+        return null;
+    }
+
+    return [
+        's' => 'ok',
+        'o' => $o,
+        'h' => $h,
+        'l' => $l,
+        'c' => $c,
+        't' => $t,
+        'v' => $v,
+        '_source' => 'stooq'
+    ];
+}
+
 // ==== REQUEST HANDLING ====
 try {
     $cacheKey = getCacheKey($action, $symbol);
@@ -166,15 +252,29 @@ try {
                 'from' => $from,
                 'to' => $to
             ]);
+
+            $needsFallback = isset($candleData['error'])
+                || !isset($candleData['s'])
+                || $candleData['s'] !== 'ok'
+                || !isset($candleData['c'])
+                || count($candleData['c']) < 2;
+
+            if ($needsFallback) {
+                $fallbackData = fetchStooqCandles($symbol, $count);
+                if ($fallbackData !== null) {
+                    $candleData = $fallbackData;
+                }
+            }
             
             // DEBUG: Přidej info o datech
-            if ($candleData['s'] === 'ok') {
+            if (isset($candleData['s']) && $candleData['s'] === 'ok') {
                 $candleData['_debug'] = [
                     'count' => count($candleData['c'] ?? []),
                     'from_date' => date('Y-m-d', $from),
                     'to_date' => date('Y-m-d', $to),
                     'first_price' => $candleData['c'][0] ?? null,
-                    'last_price' => end($candleData['c']) ?? null
+                    'last_price' => end($candleData['c']) ?? null,
+                    'source' => $candleData['_source'] ?? 'finnhub'
                 ];
             }
             
