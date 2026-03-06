@@ -17,6 +17,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 // ==== KONFIGURACE ====
 const FINNHUB_API_KEY = 'd6avddhr01qnr27j2em0d6avddhr01qnr27j2emg';
+const TWELVE_DATA_API_KEY = 'adc12bccbf7a49bd9f61c1c56e8a7065';
 const CACHE_DURATION = 60; // Cache v sekundách
 const RATE_LIMIT = 60; // Max požadavků za minutu
 const ALLOWED_SYMBOLS = ['MU', 'NOW', 'MSFT', 'ASML'];
@@ -89,20 +90,39 @@ function setCache($key, $content) {
 }
 
 // ==== API CALLS ====
+function curlRequest($url, $timeout = 10) {
+    if (extension_loaded('curl')) {
+        $ch = curl_init();
+        curl_setopt_array($ch, [
+            CURLOPT_URL => $url,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT => $timeout,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_SSL_VERIFYPEER => false
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+        return $response !== false ? $response : null;
+    } else {
+        // Fallback na file_get_contents
+        $context = stream_context_create([
+            'http' => [
+                'timeout' => $timeout,
+                'ignore_errors' => true,
+                'user_agent' => 'Strateg2026/1.0'
+            ]
+        ]);
+        return @file_get_contents($url, false, $context);
+    }
+}
+
 function callFinnhub($endpoint, $params = []) {
     $params['token'] = FINNHUB_API_KEY;
     $url = "https://finnhub.io/api/v1/{$endpoint}?" . http_build_query($params);
     
-    $context = stream_context_create([
-        'http' => [
-            'timeout' => 10,
-            'ignore_errors' => true
-        ]
-    ]);
+    $response = curlRequest($url);
     
-    $response = @file_get_contents($url, false, $context);
-    
-    if ($response === false) {
+    if ($response === null) {
         throw new Exception('API request failed');
     }
     
@@ -115,6 +135,20 @@ function callFinnhub($endpoint, $params = []) {
     return $data;
 }
 
+function callTwelveData($endpoint, $params = []) {
+    $params['apikey'] = TWELVE_DATA_API_KEY;
+    $url = "https://api.twelvedata.com/{$endpoint}?" . http_build_query($params);
+    
+    $response = curlRequest($url);
+    
+    if ($response === null) {
+        return null;
+    }
+    
+    $data = json_decode($response, true);
+    return is_array($data) ? $data : null;
+}
+
 function getStooqSymbol($symbol) {
     return strtolower($symbol) . '.us';
 }
@@ -123,15 +157,8 @@ function fetchStooqCandles($symbol, $count = 60) {
     $stooqSymbol = getStooqSymbol($symbol);
     $url = "https://stooq.com/q/d/l/?s={$stooqSymbol}&i=d";
 
-    $context = stream_context_create([
-        'http' => [
-            'timeout' => 10,
-            'ignore_errors' => true
-        ]
-    ]);
-
-    $csv = @file_get_contents($url, false, $context);
-    if ($csv === false || trim($csv) === '') {
+    $csv = curlRequest($url);
+    if ($csv === null || trim($csv) === '') {
         return null;
     }
 
@@ -209,15 +236,8 @@ function fetchYahooCandles($symbol, $count = 60) {
 
     $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?range={$range}&interval=1d";
 
-    $context = stream_context_create([
-        'http' => [
-            'timeout' => 10,
-            'ignore_errors' => true
-        ]
-    ]);
-
-    $response = @file_get_contents($url, false, $context);
-    if ($response === false || trim($response) === '') {
+    $response = curlRequest($url);
+    if ($response === null || trim($response) === '') {
         return null;
     }
 
