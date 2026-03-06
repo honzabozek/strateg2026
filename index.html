@@ -239,6 +239,22 @@
             </div>
         </header>
 
+        <!-- View Controls -->
+        <div class="glass p-4 mb-6 flex justify-between items-center slide-up" style="animation-delay: 0.05s;">
+            <div class="flex items-center gap-4">
+                <span class="text-xs text-zinc-400">
+                    <span class="font-black text-white">${WATCHLIST.length}</span> akcií
+                </span>
+                <span class="text-xs text-zinc-500">|</span>
+                <span class="text-xs text-zinc-400">
+                    Color Rank
+                </span>
+            </div>
+            <button onclick="toggleViewMode()" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-xs font-bold text-zinc-300 hover:text-white transition">
+                <span id="view-mode-text">${viewMode === 'table' ? '📊 Tabulka' : '🔲 Karty'}</span>
+            </button>
+        </div>
+
         <!-- AI Verdict Panel -->
         <div id="ai-verdict" class="glass p-6 mb-6 border-blue-500/20 shadow-xl slide-up" style="animation-delay: 0.1s;">
             <div class="flex items-center gap-3 mb-3">
@@ -329,15 +345,27 @@
         };
 
         // ===== GLOBÁLNÍ STATE =====
-        let myData = {
-            "MU": { avg: 407.57, shares: 2.2623 },
-            "NOW": { avg: 0, shares: 0 },
-            "MSFT": { avg: 0, shares: 0 },
-            "ASML": { avg: 0, shares: 0 }
-        };
+        const WATCHLIST = [
+            'MU', 'NOW', 'MSFT', 'ASML', 'ASM', 'SMCI', 'TSM', 'AVGO',
+            'APLD', 'NBIS', 'PLTR', 'IONQ', 'RKLB', 'LUNR', 'OKLO',
+            'ISRG', 'TSLA', 'BEAM', 'MELI', 'AFRM', 'UPST', 'CRWD',
+            'APP', 'SNOW', 'NU', 'TTD', 'NET', 'GRAB', 'ADBE', 'ADYEN',
+            'DUOL', 'MQ', 'DAVE', 'BKKT', 'FOUR', 'FLYW', 'TOST', 'ALE',
+            'GEN', 'EVD', 'HOOD', 'LMND', 'COIN', 'SPPW', 'CEZ'
+        ];
+        
+        let myData = WATCHLIST.reduce((acc, sym) => {
+            acc[sym] = { avg: sym === 'MU' ? 407.57 : 0, shares: sym === 'MU' ? 2.2623 : 0 };
+            return acc;
+        }, {});
+        
         let livePrices = {};
         let isLoading = false;
         let refreshInterval = null;
+        let viewMode = 'table'; // 'table' nebo 'cards'
+        let sortBy = 'colorRank'; // 'colorRank', 'symbol', 'change', 'rsi'
+        let sortOrder = 'desc'; // 'asc' nebo 'desc'
+        let stocksData = [];
 
         // ===== UTILITY FUNKCE =====
         function showError(message) {
@@ -422,6 +450,63 @@
             return Math.round(rsi);
         }
 
+        // ===== COLOR RANK ALGORITMUS =====
+        function calculateColorRank(stockData) {
+            let score = 50; // Základní skóre
+            
+            // RSI váha 30% (přeprodané = buy = +15, překoupené = sell = -15)
+            if (stockData.rsi !== null) {
+                if (stockData.rsi < 30) score += 15;
+                else if (stockData.rsi >= 30 && stockData.rsi < 40) score += 10;
+                else if (stockData.rsi > 70) score -= 15;
+                else if (stockData.rsi > 60 && stockData.rsi <= 70) score -= 10;
+            }
+            
+            // Změna % dne - váha 20% (růst = pozitivní)
+            if (stockData.change !== undefined) {
+                if (stockData.change > 5) score += 10;
+                else if (stockData.change > 2) score += 5;
+                else if (stockData.change < -5) score -= 10;
+                else if (stockData.change < -2) score -= 5;
+            }
+            
+            // P/E ratio - váha 20% (nízké jsou lepší)
+            if (stockData.pe > 0) {
+                if (stockData.pe < 15) score += 10;
+                else if (stockData.pe < 25) score += 5;
+                else if (stockData.pe > 50) score -= 10;
+                else if (stockData.pe > 35) score -= 5;
+            }
+            
+            // PEG ratio - váha 15% (< 1 je ideální)
+            if (stockData.peg > 0) {
+                if (stockData.peg < 1) score += 8;
+                else if (stockData.peg < 1.5) score += 4;
+                else if (stockData.peg > 3) score -= 8;
+                else if (stockData.peg > 2) score -= 4;
+            }
+            
+            // Momentum (price vs 52W range) - váha 15%
+            if (stockData.high52 && stockData.low52 && stockData.price) {
+                const range = stockData.high52 - stockData.low52;
+                if (range > 0) {
+                    const position = (stockData.price - stockData.low52) / range;
+                    if (position < 0.3) score += 7; // Blízko 52W low = buy
+                    else if (position > 0.85) score -= 7; // Blízko 52W high = opatrně
+                }
+            }
+            
+            return Math.max(0, Math.min(100, Math.round(score)));
+        }
+        
+        function getColorForRank(rank) {
+            if (rank >= 80) return { emoji: '🟢', text: 'Silný buy', color: 'emerald', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30' };
+            if (rank >= 60) return { emoji: '🟡', text: 'Neutrální', color: 'yellow', bg: 'bg-yellow-500/10', border: 'border-yellow-500/30' };
+            if (rank >= 40) return { emoji: '🟠', text: 'Hold', color: 'orange', bg: 'bg-orange-500/10', border: 'border-orange-500/30' };
+            if (rank >= 20) return { emoji: '🔴', text: 'Sell signál', color: 'red', bg: 'bg-red-500/10', border: 'border-red-500/30' };
+            return { emoji: '🟣', text: 'Vysoké riziko', color: 'purple', bg: 'bg-purple-500/10', border: 'border-purple-500/30' };
+        }
+
         // ===== API KOMUNIKACE =====
         async function fetchStockData(ticker) {
             try {
@@ -453,7 +538,7 @@
                     rsi = calculateRSI(historyData.c, CONFIG.RSI_PERIOD);
                 }
                 
-                return {
+                const stockData = {
                     symbol: ticker,
                     price: quote.c || 0,
                     change: quote.dp || 0,
@@ -463,6 +548,12 @@
                     peg: (metrics.metric?.peExclExtraTTM / 20) || 0,
                     rsi: rsi
                 };
+                
+                // Vypočítat Color Rank
+                stockData.colorRank = calculateColorRank(stockData);
+                stockData.colorInfo = getColorForRank(stockData.colorRank);
+                
+                return stockData;
                 
             } catch (error) {
                 console.error(`Chyba pro ${ticker}:`, error);
@@ -541,6 +632,11 @@
                             <h2 class="text-2xl font-black text-white tracking-tighter" style="font-family: 'Space Grotesk', sans-serif;">
                                 ${stockData.symbol}
                             </h2>
+                                                        ${stockData.colorRank ? `
+                                                            <div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-bold" style="background: ${stockData.colorInfo.color}20; color: ${stockData.colorInfo.color}; border: 1px solid ${stockData.colorInfo.color}40;">
+                                                                ${stockData.colorInfo.emoji} ${stockData.colorRank} — ${stockData.colorInfo.text}
+                                                            </div>
+                                                        ` : ''}
                             <div class="flex gap-2 mt-2 flex-wrap">
                                 <span class="metric-badge text-zinc-400">P/E: ${stockData.pe.toFixed(1)}</span>
                                 <span class="metric-badge text-zinc-400">PEG: ${stockData.peg.toFixed(2)}</span>
@@ -633,28 +729,185 @@
             verdictEl.innerHTML = verdict;
         }
 
+        // ===== TABLE VIEW RENDERING =====
+        function sortStocks(stocks) {
+            return [...stocks].sort((a, b) => {
+                let aVal, bVal;
+                
+                switch(sortBy) {
+                    case 'colorRank':
+                        aVal = a.colorRank;
+                        bVal = b.colorRank;
+                        break;
+                    case 'symbol':
+                        aVal = a.symbol;
+                        bVal = b.symbol;
+                        break;
+                    case 'change':
+                        aVal = a.change;
+                        bVal = b.change;
+                        break;
+                    case 'rsi':
+                        aVal = a.rsi ?? -1;
+                        bVal = b.rsi ?? -1;
+                        break;
+                    case 'price':
+                        aVal = a.price;
+                        bVal = b.price;
+                        break;
+                    default:
+                        aVal = a.colorRank;
+                        bVal = b.colorRank;
+                }
+                
+                if (sortOrder === 'asc') {
+                    return aVal > bVal ? 1 : -1;
+                } else {
+                    return aVal < bVal ? 1 : -1;
+                }
+            });
+        }
+        
+        function renderTableView(stocks) {
+            const sorted = sortStocks(stocks);
+            
+            return `
+                <div class="glass overflow-hidden">
+                    <table class="w-full text-sm">
+                        <thead class="bg-white/5 border-b border-white/10">
+                            <tr>
+                                <th class="px-4 py-3 text-left text-xs font-black text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-white" onclick="setSortBy('colorRank')">
+                                    Rank ${sortBy === 'colorRank' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-black text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-white" onclick="setSortBy('symbol')">
+                                    Symbol ${sortBy === 'symbol' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                                </th>
+                                <th class="px-4 py-3 text-left text-xs font-black text-zinc-400 uppercase tracking-wider">
+                                    Název
+                                </th>
+                                <th class="px-4 py-3 text-right text-xs font-black text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-white" onclick="setSortBy('price')">
+                                    Cena ${sortBy === 'price' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                                </th>
+                                <th class="px-4 py-3 text-right text-xs font-black text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-white" onclick="setSortBy('change')">
+                                    Změna ${sortBy === 'change' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                                </th>
+                                <th class="px-4 py-3 text-right text-xs font-black text-zinc-400 uppercase tracking-wider">
+                                    P/E
+                                </th>
+                                <th class="px-4 py-3 text-right text-xs font-black text-zinc-400 uppercase tracking-wider cursor-pointer hover:text-white" onclick="setSortBy('rsi')">
+                                    RSI ${sortBy === 'rsi' ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-white/5">
+                            ${sorted.map((stock, idx) => `
+                                <tr class="hover:bg-white/5 transition cursor-pointer" onclick="showStockDetail('${stock.symbol}')">
+                                    <td class="px-4 py-4">
+                                        <div class="flex items-center gap-3">
+                                            <span class="text-2xl">${stock.colorInfo.emoji}</span>
+                                            <div>
+                                                <div class="text-xl font-black text-white">${stock.colorRank}</div>
+                                                <div class="text-[9px] font-bold uppercase" style="color: ${stock.colorInfo.color}">${stock.colorInfo.text}</div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="px-4 py-4">
+                                        <span class="text-sm font-black text-white">${stock.symbol}</span>
+                                    </td>
+                                    <td class="px-4 py-4 text-xs text-zinc-400">
+                                        ${getStockName(stock.symbol)}
+                                    </td>
+                                    <td class="px-4 py-4 text-right">
+                                        <span class="text-sm font-bold text-white">$${stock.price.toFixed(2)}</span>
+                                    </td>
+                                    <td class="px-4 py-4 text-right">
+                                        <span class="text-sm font-bold ${stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'}">
+                                            ${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)}%
+                                        </span>
+                                    </td>
+                                    <td class="px-4 py-4 text-right">
+                                        <span class="text-sm text-zinc-300">${stock.pe.toFixed(1)}</span>
+                                    </td>
+                                    <td class="px-4 py-4 text-right">
+                                        ${stock.rsi !== null ? `
+                                            <span class="text-sm font-bold ${stock.rsi < 30 ? 'text-emerald-400' : stock.rsi > 70 ? 'text-red-400' : 'text-blue-400'}">
+                                                ${Math.round(stock.rsi)}
+                                            </span>
+                                        ` : '<span class="text-xs text-zinc-500">N/A</span>'}
+                                    </td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                </div>
+            `;
+        }
+        
+        function getStockName(symbol) {
+            const names = {
+                'MU': 'Micron Technology', 'NOW': 'ServiceNow', 'MSFT': 'Microsoft',
+                'ASML': 'ASML Holding', 'ASM': 'ASM International', 'SMCI': 'Super Micro Computer',
+                'TSM': 'Taiwan Semiconductor', 'AVGO': 'Broadcom', 'APLD': 'Applied Digital',
+                'NBIS': 'Nebius Group', 'PLTR': 'Palantir', 'IONQ': 'IONQ', 
+                'RKLB': 'Rocket Lab', 'LUNR': 'Intuitive Machines', 'OKLO': 'Oklo',
+                'ISRG': 'Intuitive Surgical', 'TSLA': 'Tesla', 'BEAM': 'Beam Therapeutics',
+                'MELI': 'MercadoLibre', 'AFRM': 'Affirm', 'UPST': 'Upstart',
+                'CRWD': 'CrowdStrike', 'APP': 'AppLovin', 'SNOW': 'Snowflake',
+                'NU': 'Nu Holdings', 'TTD': 'Trade Desk', 'NET': 'Cloudflare',
+                'GRAB': 'Grab Holdings', 'ADBE': 'Adobe', 'ADYEN': 'Adyen',
+                'DUOL': 'Duolingo', 'MQ': 'Marqeta', 'DAVE': 'Dave',
+                'BKKT': 'Bakkt', 'FOUR': 'Shift4 Payments', 'FLYW': 'Flywire',
+                'TOST': 'Toast', 'ALE': 'Allegro.eu', 'GEN': 'Gen Digital',
+                'EVD': 'CTS Eventim', 'HOOD': 'Robinhood', 'LMND': 'Lemonade',
+                'COIN': 'Coinbase', 'SPPW': 'SPDR MSCI World', 'CEZ': 'ČEZ'
+            };
+            return names[symbol] || symbol;
+        }
+        
+        function setSortBy(column) {
+            if (sortBy === column) {
+                sortOrder = sortOrder === 'desc' ? 'asc' : 'desc';
+            } else {
+                sortBy = column;
+                sortOrder = 'desc';
+            }
+            renderUI();
+        }
+        
+        function toggleViewMode() {
+            viewMode = viewMode === 'table' ? 'cards' : 'table';
+                        document.getElementById('view-mode-text').textContent = viewMode === 'table' ? '📊 Tabulka' : '🔲 Karty';
+            renderUI();
+        }
+        
+        function renderUI() {
+            const container = document.getElementById('stock-container');
+            if (viewMode === 'table') {
+                container.innerHTML = renderTableView(stocksData);
+            } else {
+                container.innerHTML = stocksData.map(s => renderStockCard(s)).join('');
+            }
+        }
+        
+        function showStockDetail(symbol) {
+            // TODO: Implementovat detail panel
+            console.log('Detail for:', symbol);
+        }
+
         async function updateTerminal() {
             if (isLoading) return;
             
             setLoadingState(true);
             updateClock();
             
-            const container = document.getElementById('stock-container');
-            const tickers = Object.keys(myData);
-            let results = [];
+            stocksData = [];
             let failedCount = 0;
             
-            for (const ticker of tickers) {
+            for (const ticker of WATCHLIST) {
                 try {
                     const data = await fetchStockData(ticker);
                     livePrices[ticker] = data.price;
-                    results.push(data);
-                    
-                    // Postupné renderování
-                    if (results.length === 1) {
-                        container.innerHTML = '';
-                    }
-                    container.innerHTML += renderStockCard(data);
+                    stocksData.push(data);
                     
                 } catch (error) {
                     console.error(`Chyba pro ${ticker}:`, error);
@@ -662,15 +915,16 @@
                 }
             }
             
-            if (failedCount === tickers.length) {
+            if (failedCount === WATCHLIST.length) {
                 showError('Nepodařilo se načíst žádná data. Zkontrolujte připojení.');
                 updateSyncStatus(false, 'API Error');
             } else if (failedCount > 0) {
-                showError(`Nepodařilo se načíst ${failedCount} z ${tickers.length} akcií.`);
+                showError(`Nepodařilo se načíst ${failedCount} z ${WATCHLIST.length} akcií.`);
             }
             
-            if (results.length > 0) {
-                renderVerdict(results);
+            if (stocksData.length > 0) {
+                renderUI();
+                renderVerdict(stocksData);
                 updateSyncStatus(true, 'Aktualizováno');
             }
             

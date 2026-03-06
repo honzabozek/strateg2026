@@ -21,7 +21,14 @@ const TWELVE_DATA_API_KEY = 'adc12bccbf7a49bd9f61c1c56e8a7065';
 const ALPHA_VANTAGE_API_KEY = 'demo'; // Free: demo key for testing, replace with real key
 const CACHE_DURATION = 60; // Cache v sekundách
 const RATE_LIMIT = 60; // Max požadavků za minutu
-const ALLOWED_SYMBOLS = ['MU', 'NOW', 'MSFT', 'ASML'];
+const ALLOWED_SYMBOLS = [
+    'MU', 'NOW', 'MSFT', 'ASML', 'ASM', 'SMCI', 'TSM', 'AVGO',
+    'APLD', 'NBIS', 'PLTR', 'IONQ', 'RKLB', 'LUNR', 'OKLO',
+    'ISRG', 'TSLA', 'BEAM', 'MELI', 'AFRM', 'UPST', 'CRWD',
+    'APP', 'SNOW', 'NU', 'TTD', 'NET', 'GRAB', 'ADBE', 'ADYEN',
+    'DUOL', 'MQ', 'DAVE', 'BKKT', 'FOUR', 'FLYW', 'TOST', 'ALE',
+    'GEN', 'EVD', 'HOOD', 'LMND', 'COIN', 'SPPW', 'CEZ'
+];
 
 // ==== RATE LIMITING ====
 session_start();
