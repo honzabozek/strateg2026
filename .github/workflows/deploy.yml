@@ -1,9 +1,6 @@
 name: Deploy to Forpsi FTP
 
 on:
-  push:
-    branches:
-      - main
   workflow_dispatch:
 
 jobs:
