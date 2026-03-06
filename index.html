@@ -255,6 +255,42 @@
             </button>
         </div>
 
+        <!-- Sticky Position Monitor -->
+        <div id="sticky-detail-panel" class="glass p-4 mb-6 border border-blue-400/30 slide-up" style="animation-delay: 0.08s; display: none;">
+            <div class="flex justify-between items-start gap-4">
+                <div class="flex-1">
+                    <div class="flex items-center gap-2 mb-2">
+                        <span id="sticky-rank-emoji" class="text-lg">🟢</span>
+                        <span id="sticky-symbol" class="text-sm font-black text-white">--</span>
+                        <span id="sticky-name" class="text-[9px] text-zinc-500 uppercase">Loading...</span>
+                    </div>
+                    <div class="flex items-center gap-3 text-[10px]">
+                        <div>
+                            <span class="text-zinc-500">Cena:</span>
+                            <span id="sticky-price" class="font-bold text-white ml-1">$0.00</span>
+                        </div>
+                        <div>
+                            <span id="sticky-change" class="font-bold text-emerald-400">+0.00%</span>
+                        </div>
+                        <div class="text-zinc-600">|</div>
+                        <div>
+                            <span class="text-zinc-500">RSI:</span>
+                            <span id="sticky-rsi" class="font-bold text-white ml-1">--</span>
+                        </div>
+                        <div>
+                            <span class="text-zinc-500">P/E:</span>
+                            <span id="sticky-pe" class="font-bold text-white ml-1">--</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="sticky-position" class="text-right" style="display: none;">
+                    <div class="text-[9px] text-zinc-500 uppercase mb-1">Vaše pozice</div>
+                    <div id="sticky-pnl" class="text-sm font-black text-emerald-400">+$0.00</div>
+                    <div id="sticky-shares" class="text-[9px] text-zinc-600">0 ks</div>
+                </div>
+            </div>
+        </div>
+
         <!-- AI Verdict Panel -->
         <div id="ai-verdict" class="glass p-6 mb-6 border-blue-500/20 shadow-xl slide-up" style="animation-delay: 0.1s;">
             <div class="flex items-center gap-3 mb-3">
@@ -992,6 +1028,45 @@
             return num.toFixed(0);
         }
 
+        function updateStickyDetail(symbol) {
+            const panel = document.getElementById('sticky-detail-panel');
+            const stock = stocksData.find(s => s.symbol === symbol);
+            
+            if (!stock) {
+                panel.style.display = 'none';
+                return;
+            }
+
+            const position = myData[symbol] || { avg: 0, shares: 0 };
+            const hasPosition = position.shares > 0;
+            const pnlValue = hasPosition ? (stock.price - position.avg) * position.shares : 0;
+            
+            document.getElementById('sticky-rank-emoji').textContent = stock.colorInfo.emoji;
+            document.getElementById('sticky-symbol').textContent = stock.symbol;
+            document.getElementById('sticky-name').textContent = getStockName(stock.symbol);
+            document.getElementById('sticky-price').textContent = formatCurrency(stock.price);
+            
+            const changeEl = document.getElementById('sticky-change');
+            changeEl.textContent = `${stock.change >= 0 ? '+' : ''}${stock.change.toFixed(2)}%`;
+            changeEl.className = `font-bold ${stock.change >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+            
+            document.getElementById('sticky-rsi').textContent = stock.rsi !== null ? Math.round(stock.rsi) : 'N/A';
+            document.getElementById('sticky-pe').textContent = stock.pe > 0 ? stock.pe.toFixed(1) : 'N/A';
+            
+            const positionDiv = document.getElementById('sticky-position');
+            if (hasPosition) {
+                positionDiv.style.display = 'block';
+                const pnlEl = document.getElementById('sticky-pnl');
+                pnlEl.textContent = `${pnlValue >= 0 ? '+' : ''}${formatCurrency(Math.abs(pnlValue))}`;
+                pnlEl.className = `text-sm font-black ${pnlValue >= 0 ? 'text-emerald-400' : 'text-red-400'}`;
+                document.getElementById('sticky-shares').textContent = `${position.shares.toFixed(4)} ks @ ${formatCurrency(position.avg)}`;
+            } else {
+                positionDiv.style.display = 'none';
+            }
+            
+            panel.style.display = 'block';
+        }
+
         function buildCzechInsight(stock, position) {
             const points = [];
             const upside = stock.targetPrice > 0
@@ -1032,6 +1107,7 @@
             }
 
             selectedSymbol = symbol;
+            updateStickyDetail(symbol);
             const position = myData[symbol] || { avg: 0, shares: 0 };
             const invested = position.avg * position.shares;
             const currentValue = stock.price * position.shares;
@@ -1132,7 +1208,13 @@
                     showStockDetail(selectedSymbol);
                 } else {
                     const firstHeld = stocksData.find(s => (myData[s.symbol]?.shares || 0) > 0);
-                    if (firstHeld) showStockDetail(firstHeld.symbol);
+                    if (firstHeld) {
+                        showStockDetail(firstHeld.symbol);
+                    } else if (stocksData.length > 0) {
+                        // Pokud žádná pozice, zobraz sticky pro první ticker
+                        selectedSymbol = stocksData[0].symbol;
+                        updateStickyDetail(stocksData[0].symbol);
+                    }
                 }
 
                 updateSyncStatus(true, 'Aktualizováno');
