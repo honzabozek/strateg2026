@@ -201,6 +201,104 @@ function fetchStooqCandles($symbol, $count = 60) {
     ];
 }
 
+function fetchYahooCandles($symbol, $count = 60) {
+    $range = '6mo';
+    if ($count > 120) {
+        $range = '1y';
+    }
+
+    $url = "https://query1.finance.yahoo.com/v8/finance/chart/{$symbol}?range={$range}&interval=1d";
+
+    $context = stream_context_create([
+        'http' => [
+            'timeout' => 10,
+            'ignore_errors' => true
+        ]
+    ]);
+
+    $response = @file_get_contents($url, false, $context);
+    if ($response === false || trim($response) === '') {
+        return null;
+    }
+
+    $data = json_decode($response, true);
+    if (!is_array($data)) {
+        return null;
+    }
+
+    $result = $data['chart']['result'][0] ?? null;
+    if (!$result) {
+        return null;
+    }
+
+    $timestamps = $result['timestamp'] ?? [];
+    $quote = $result['indicators']['quote'][0] ?? null;
+    if (!$quote) {
+        return null;
+    }
+
+    $opens = $quote['open'] ?? [];
+    $highs = $quote['high'] ?? [];
+    $lows = $quote['low'] ?? [];
+    $closes = $quote['close'] ?? [];
+    $volumes = $quote['volume'] ?? [];
+
+    $o = [];
+    $h = [];
+    $l = [];
+    $c = [];
+    $t = [];
+    $v = [];
+
+    $length = count($timestamps);
+    for ($i = 0; $i < $length; $i++) {
+        $open = $opens[$i] ?? null;
+        $high = $highs[$i] ?? null;
+        $low = $lows[$i] ?? null;
+        $close = $closes[$i] ?? null;
+        $timestamp = $timestamps[$i] ?? null;
+
+        if ($timestamp === null || !is_numeric($timestamp)) {
+            continue;
+        }
+        if (!is_numeric($open) || !is_numeric($high) || !is_numeric($low) || !is_numeric($close)) {
+            continue;
+        }
+
+        $o[] = (float)$open;
+        $h[] = (float)$high;
+        $l[] = (float)$low;
+        $c[] = (float)$close;
+        $t[] = (int)$timestamp;
+        $v[] = isset($volumes[$i]) && is_numeric($volumes[$i]) ? (float)$volumes[$i] : 0.0;
+    }
+
+    if (count($c) < 2) {
+        return null;
+    }
+
+    if (count($c) > $count) {
+        $offset = count($c) - $count;
+        $o = array_slice($o, $offset);
+        $h = array_slice($h, $offset);
+        $l = array_slice($l, $offset);
+        $c = array_slice($c, $offset);
+        $t = array_slice($t, $offset);
+        $v = array_slice($v, $offset);
+    }
+
+    return [
+        's' => 'ok',
+        'o' => $o,
+        'h' => $h,
+        'l' => $l,
+        'c' => $c,
+        't' => $t,
+        'v' => $v,
+        '_source' => 'yahoo'
+    ];
+}
+
 // ==== REQUEST HANDLING ====
 try {
     $cacheKey = getCacheKey($action, $symbol);
@@ -260,7 +358,10 @@ try {
                 || count($candleData['c']) < 2;
 
             if ($needsFallback) {
-                $fallbackData = fetchStooqCandles($symbol, $count);
+                $fallbackData = fetchYahooCandles($symbol, $count);
+                if ($fallbackData === null) {
+                    $fallbackData = fetchStooqCandles($symbol, $count);
+                }
                 if ($fallbackData !== null) {
                     $candleData = $fallbackData;
                 }
