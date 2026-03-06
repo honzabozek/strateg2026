@@ -19,7 +19,7 @@ jobs:
           server: ftpx.forpsi.com
           username: ${{ secrets.FTP_USERNAME || 'www.janbozek.cz' }}
           password: ${{ secrets.FTP_PASSWORD }}
-          protocol: ftp
+          protocol: ftps
           port: 21
           local-dir: ./
           server-dir: /www/strateg2026/
