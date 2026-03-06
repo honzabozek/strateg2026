@@ -16,8 +16,8 @@ jobs:
       - name: FTP Deploy
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
-          server: ${{ secrets.FTP_SERVER }}
-          username: ${{ secrets.FTP_USERNAME }}
+          server: ftpx.forpsi.com
+          username: www.janbozek.cz
           password: ${{ secrets.FTP_PASSWORD }}
           protocol: ftp
           port: 21
