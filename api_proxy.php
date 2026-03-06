@@ -537,8 +537,12 @@ try {
                 if ($fallbackData === null) {
                     $fallbackData = fetchTwelveDataCandles($symbol, $count);
                 }
+                
                 if ($fallbackData !== null) {
                     $candleData = $fallbackData;
+                } else {
+                    // Všechny fallbacky selhaly
+                    throw new Exception('No candles data available from any source');
                 }
             }
             
