@@ -91,15 +91,20 @@ function setCache($key, $content) {
 }
 
 // ==== API CALLS ====
-function curlRequest($url, $timeout = 10) {
+function curlRequest($url, $timeout = 10, $headers = []) {
     if (extension_loaded('curl')) {
         $ch = curl_init();
+        
+        $defaultHeaders = ['User-Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'];
+        $allHeaders = array_merge($defaultHeaders, $headers);
+        
         curl_setopt_array($ch, [
             CURLOPT_URL => $url,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT => $timeout,
             CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_SSL_VERIFYPEER => false
+            CURLOPT_SSL_VERIFYPEER => false,
+            CURLOPT_HTTPHEADER => $allHeaders
         ]);
         $response = curl_exec($ch);
         curl_close($ch);
@@ -110,7 +115,7 @@ function curlRequest($url, $timeout = 10) {
             'http' => [
                 'timeout' => $timeout,
                 'ignore_errors' => true,
-                'user_agent' => 'Strateg2026/1.0'
+                'user_agent' => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
             ]
         ]);
         return @file_get_contents($url, false, $context);
