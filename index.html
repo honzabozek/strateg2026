@@ -217,81 +217,250 @@
             font-weight: 700;
             letter-spacing: 0.5px;
         }
+        
+        /* Desktop Layout */
+        .desktop-layout {
+            display: grid;
+            grid-template-columns: 280px 1fr 360px;
+            gap: 20px;
+            max-width: 1920px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .sidebar-left {
+            position: sticky;
+            top: 20px;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        .sidebar-right {
+            position: sticky;
+            top: 20px;
+            height: calc(100vh - 40px);
+            overflow-y: auto;
+        }
+        
+        .main-content {
+            min-height: calc(100vh - 40px);
+        }
+        
+        .filter-section {
+            margin-bottom: 20px;
+        }
+        
+        .filter-label {
+            font-size: 10px;
+            font-weight: 800;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #71717a;
+            margin-bottom: 8px;
+            display: block;
+        }
+        
+        .filter-checkbox {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 10px;
+            cursor: pointer;
+            border-radius: 6px;
+            transition: background 0.2s;
+            font-size: 12px;
+        }
+        
+        .filter-checkbox:hover {
+            background: rgba(255, 255, 255, 0.05);
+        }
+        
+        .filter-checkbox input[type="checkbox"] {
+            width: 14px;
+            height: 14px;
+            cursor: pointer;
+        }
+        
+        .range-slider {
+            width: 100%;
+            margin: 10px 0;
+        }
+        
+        .range-values {
+            display: flex;
+            justify-content: space-between;
+            font-size: 10px;
+            color: #a1a1aa;
+            margin-top: 4px;
+        }
+        
+        .preset-btn {
+            padding: 8px 12px;
+            background: rgba(59, 130, 246, 0.1);
+            border: 1px solid rgba(59, 130, 246, 0.3);
+            border-radius: 6px;
+            color: #60a5fa;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .preset-btn:hover {
+            background: rgba(59, 130, 246, 0.2);
+            border-color: rgba(59, 130, 246, 0.5);
+        }
+        
+        .preset-btn.active {
+            background: rgba(59, 130, 246, 0.3);
+            border-color: #60a5fa;
+            box-shadow: 0 0 20px rgba(59, 130, 246, 0.3);
+        }
+        
+        @media (max-width: 1400px) {
+            .desktop-layout {
+                grid-template-columns: 240px 1fr 320px;
+            }
+        }
+        
+        @media (max-width: 1024px) {
+            .desktop-layout {
+                grid-template-columns: 1fr;
+                gap: 16px;
+            }
+            .sidebar-left, .sidebar-right {
+                position: relative;
+                height: auto;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container p-4 max-w-md mx-auto pb-32">
-        
-        <!-- Header -->
-        <header class="mb-8 flex justify-between items-center px-2 fade-in">
+    <!-- Header (Full Width) -->
+    <header class="w-full bg-black/40 backdrop-blur-md border-b border-white/5 px-6 py-4 flex justify-between items-center fade-in">
+        <div class="flex items-center gap-8">
             <div>
-                <h1 class="text-3xl font-black text-white tracking-tighter" style="font-family: 'Space Grotesk', sans-serif;">
+                <h1 class="text-2xl font-black text-white tracking-tighter" style="font-family: 'Space Grotesk', sans-serif;">
                     STRATÉG <span class="text-blue-500 underline decoration-4 underline-offset-4">2026</span>
                 </h1>
-                <p class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-1">Investment Terminal v2.0</p>
+                <p class="text-[9px] text-zinc-500 font-bold uppercase tracking-wider mt-0.5">Investment Terminal · Pro Screener</p>
             </div>
+            
+            <!-- Screener Presets -->
+            <div class="flex items-center gap-2">
+                <button onclick="applyPreset('deepvalue')" class="preset-btn" id="preset-deepvalue">🟢 Deep Value US</button>
+                <button onclick="applyPreset('growth')" class="preset-btn" id="preset-growth">🟡 Growth EU</button>
+                <button onclick="applyPreset('momentum')" class="preset-btn" id="preset-momentum">🔵 Momentum Asia</button>
+                <button onclick="resetFilters()" class="preset-btn">🔄 Reset</button>
+            </div>
+        </div>
+        
+        <div class="flex items-center gap-6">
             <div class="text-right">
                 <p id="live-clock" class="text-[10px] text-zinc-400 font-bold uppercase tracking-widest">--:--:--</p>
-                <div class="flex items-center gap-2 mt-1">
+                <div class="flex items-center gap-2 mt-1 justify-end">
                     <div id="sync-indicator" class="w-2 h-2 rounded-full bg-orange-500"></div>
                     <span id="sync-status" class="text-[8px] font-black text-orange-500 uppercase">Offline</span>
                 </div>
             </div>
-        </header>
-
-        <!-- View Controls -->
-        <div class="glass p-4 mb-6 flex justify-between items-center slide-up" style="animation-delay: 0.05s;">
-            <div class="flex items-center gap-4">
-                <span class="text-xs text-zinc-400">
-                    <span id="watchlist-count" class="font-black text-white">--</span> akcií
-                </span>
-                <span class="text-xs text-zinc-500">|</span>
-                <span class="text-xs text-zinc-400">
-                    Color Rank
-                </span>
-            </div>
-            <button onclick="toggleViewMode()" class="px-3 py-1.5 bg-white/5 hover:bg-white/10 border border-white/10 rounded text-xs font-bold text-zinc-300 hover:text-white transition">
-                <span id="view-mode-text">📊 Tabulka</span>
-            </button>
-        </div>
-
-        <!-- Sticky Position Monitor -->
-        <div id="sticky-detail-panel" class="glass p-4 mb-6 border border-blue-400/30 slide-up" style="animation-delay: 0.08s; display: none;">
-            <div class="flex justify-between items-start gap-4">
-                <div class="flex-1">
-                    <div class="flex items-center gap-2 mb-2">
-                        <span id="sticky-rank-emoji" class="text-lg">🟢</span>
-                        <span id="sticky-symbol" class="text-sm font-black text-white">--</span>
-                        <span id="sticky-name" class="text-[9px] text-zinc-500 uppercase">Loading...</span>
-                    </div>
-                    <div class="flex items-center gap-3 text-[10px]">
-                        <div>
-                            <span class="text-zinc-500">Cena:</span>
-                            <span id="sticky-price" class="font-bold text-white ml-1">$0.00</span>
-                        </div>
-                        <div>
-                            <span id="sticky-change" class="font-bold text-emerald-400">+0.00%</span>
-                        </div>
-                        <div class="text-zinc-600">|</div>
-                        <div>
-                            <span class="text-zinc-500">RSI:</span>
-                            <span id="sticky-rsi" class="font-bold text-white ml-1">--</span>
-                        </div>
-                        <div>
-                            <span class="text-zinc-500">P/E:</span>
-                            <span id="sticky-pe" class="font-bold text-white ml-1">--</span>
-                        </div>
-                    </div>
-                </div>
-                <div id="sticky-position" class="text-right" style="display: none;">
-                    <div class="text-[9px] text-zinc-500 uppercase mb-1">Vaše pozice</div>
-                    <div id="sticky-pnl" class="text-sm font-black text-emerald-400">+$0.00</div>
-                    <div id="sticky-shares" class="text-[9px] text-zinc-600">0 ks</div>
-                </div>
+            <div>
+                <span class="text-xs text-zinc-500">Výsledků:</span>
+                <span id="filtered-count" class="text-xl font-black text-white ml-2">--</span>
+                <span class="text-xs text-zinc-500 ml-1">/ <span id="watchlist-count">--</span></span>
             </div>
         </div>
-
-        <!-- AI Verdict Panel -->
+    </header>
+    
+    <!-- Desktop 3-Column Layout -->
+    <div class="desktop-layout">
+        
+        <!-- LEFT SIDEBAR: FILTERS -->
+        <aside class="sidebar-left">
+            <div class="glass p-5">
+                <h2 class="text-xs font-black text-white uppercase tracking-widest mb-4 flex items-center gap-2">
+                    <span class="bg-blue-600 w-1 h-3 block rounded-full"></span> Filtry
+                </h2>
+                
+                <!-- Region Filter -->
+                <div class="filter-section">
+                    <label class="filter-label">Region</label>
+                    <div class="space-y-1">
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-region-us" checked onchange="applyFilters()">
+                            <span class="text-zinc-300">🇺🇸 United States</span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-region-eu" checked onchange="applyFilters()">
+                            <span class="text-zinc-300">🇪🇺 Europe</span>
+                        </label>
+                        <label class="filter-checkbox">
+                            <input type="checkbox" id="filter-region-asia" checked onchange="applyFilters()">
+                            <span class="text-zinc-300">🌏 Asia</span>
+                        </label>
+                    </div>
+                </div>
+                
+                <!-- Color Rank Range -->
+                <div class="filter-section">
+                    <label class="filter-label">Color Rank</label>
+                    <input type="range" id="filter-rank-min" class="range-slider" min="0" max="100" value="0" onchange="applyFilters()">
+                    <div class="range-values">
+                        <span id="rank-min-val">0</span>
+                        <span id="rank-max-val">100</span>
+                    </div>
+                    <input type="range" id="filter-rank-max" class="range-slider" min="0" max="100" value="100" onchange="applyFilters()">
+                </div>
+                
+                <!-- P/E Range -->
+                <div class="filter-section">
+                    <label class="filter-label">P/E Ratio</label>
+                    <input type="range" id="filter-pe-min" class="range-slider" min="0" max="100" value="0" onchange="applyFilters()">
+                    <div class="range-values">
+                        <span id="pe-min-val">0</span>
+                        <span id="pe-max-val">100+</span>
+                    </div>
+                    <input type="range" id="filter-pe-max" class="range-slider" min="0" max="100" value="100" onchange="applyFilters()">
+                </div>
+                
+                <!-- Market Cap Range -->
+                <div class="filter-section">
+                    <label class="filter-label">Market Cap (Mld. $)</label>
+                    <input type="range" id="filter-mcap-min" class="range-slider" min="0" max="5000" value="0" step="100" onchange="applyFilters()">
+                    <div class="range-values">
+                        <span id="mcap-min-val">0</span>
+                        <span id="mcap-max-val">5000+</span>
+                    </div>
+                    <input type="range" id="filter-mcap-max" class="range-slider" min="0" max="5000" value="5000" step="100" onchange="applyFilters()">
+                </div>
+                
+                <!-- RSI Range -->
+                <div class="filter-section">
+                    <label class="filter-label">RSI</label>
+                    <div class="flex gap-2 mb-2">
+                        <button onclick="setRSIRange(0, 30)" class="preset-btn text-[9px] flex-1">Přeprodáno</button>
+                        <button onclick="setRSIRange(70, 100)" class="preset-btn text-[9px] flex-1">Překoupeno</button>
+                    </div>
+                    <input type="range" id="filter-rsi-min" class="range-slider" min="0" max="100" value="0" onchange="applyFilters()">
+                    <div class="range-values">
+                        <span id="rsi-min-val">0</span>
+                        <span id="rsi-max-val">100</span>
+                    </div>
+                    <input type="range" id="filter-rsi-max" class="range-slider" min="0" max="100" value="100" onchange="applyFilters()">
+                </div>
+                
+                <!-- Show Holdings Only -->
+                <div class="filter-section">
+                    <label class="filter-checkbox">
+                        <input type="checkbox" id="filter-holdings-only" onchange="applyFilters()">
+                        <span class="text-zinc-300 font-bold">🎯 Pouze moje pozice</span>
+                    </label>
+                </div>
+            </div>
+        </aside>
+        
+        <!-- MAIN CONTENT: TABLE -->
+        <main class="main-content">
+            <!-- AI Verdict Panel -->
         <div id="ai-verdict" class="glass p-6 mb-6 border-blue-500/20 shadow-xl slide-up" style="animation-delay: 0.1s;">
             <div class="flex items-center gap-3 mb-3">
                 <div class="w-8 h-8 rounded-full bg-blue-500/20 flex items-center justify-center">
@@ -310,9 +479,6 @@
         <!-- Stock Cards Container -->
         <div id="stock-container" class="space-y-4 mb-6"></div>
 
-        <!-- Stock Detail Panel -->
-        <div id="stock-detail-panel" class="hidden glass p-5 mb-6 border border-white/10"></div>
-
         <!-- Error Display -->
         <div id="error-container" class="hidden glass p-4 mb-6 border-red-500/30 bg-red-500/5">
             <div class="flex items-center gap-2 mb-2">
@@ -321,48 +487,55 @@
             </div>
             <p id="error-message" class="text-xs text-red-300"></p>
         </div>
+        </main>
+        
+        <!-- RIGHT SIDEBAR: DETAIL PANEL -->
+        <aside class="sidebar-right">
+            <!-- Stock Detail Panel -->
+            <div id="stock-detail-panel" class="glass p-5 mb-6 border border-white/10" style="display: none;"></div>
 
-        <!-- Management Panel -->
-        <div class="glass p-6 border-zinc-800 slide-up" style="animation-delay: 0.2s;">
-            <h3 class="text-xs font-black text-white mb-5 uppercase tracking-widest flex items-center gap-2">
-                <span class="bg-blue-600 w-1.5 h-4 block rounded-full"></span> Správa & Simulace
-            </h3>
-            
-            <div class="space-y-6">
-                <!-- Data Entry Section -->
-                <div class="p-5 bg-white/5 rounded-xl space-y-4 border border-white/5">
-                    <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Nastavit nákupní data</p>
-                    <div class="grid grid-cols-3 gap-3">
-                        <select id="edit-ticker" class="input-dark" title="Ticker pro úpravu pozice">
-                        </select>
-                        <input type="text" id="edit-avg" placeholder="Prům. $ (např. 406,62)" class="input-dark">
-                        <input type="text" id="edit-shares" placeholder="Ks (např. 2,2623)" class="input-dark">
+            <!-- Management Panel -->
+            <div class="glass p-6 border-zinc-800">
+                <h3 class="text-xs font-black text-white mb-5 uppercase tracking-widest flex items-center gap-2">
+                    <span class="bg-blue-600 w-1.5 h-4 block rounded-full"></span> Správa & Simulace
+                </h3>
+                
+                <div class="space-y-6">
+                    <!-- Data Entry Section -->
+                    <div class="p-5 bg-white/5 rounded-xl space-y-4 border border-white/5">
+                        <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">Nastavit nákupní data</p>
+                        <div class="grid grid-cols-1 gap-3">
+                            <select id="edit-ticker" class="input-dark" title="Ticker pro úpravu pozice">
+                            </select>
+                            <input type="text" id="edit-avg" placeholder="Prům. $ (např. 406,62)" class="input-dark">
+                            <input type="text" id="edit-shares" placeholder="Ks (např. 2,2623)" class="input-dark">
+                        </div>
+                        <button onclick="saveMyData()" class="btn-primary w-full text-white text-[10px] font-black py-3 rounded-lg uppercase tracking-widest">
+                            💾 Uložit na server
+                        </button>
                     </div>
-                    <button onclick="saveMyData()" class="btn-primary w-full text-white text-[10px] font-black py-3 rounded-lg uppercase tracking-widest">
-                        💾 Uložit na server
+
+                    <!-- DCA Simulator -->
+                    <div class="space-y-4 pt-4 border-t border-white/5">
+                        <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">DCA Kalkulačka</p>
+                        <div class="grid grid-cols-1 gap-3">
+                            <select id="sim-ticker" class="input-dark py-3" title="Ticker pro DCA simulaci">
+                            </select>
+                            <input type="text" id="sim-amount" value="934" placeholder="Částka $" class="input-dark py-3">
+                        </div>
+                        <button onclick="runProSimulation()" class="w-full bg-zinc-800 text-white font-black py-4 rounded-xl text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-700 transition-all">
+                            📊 Vypočítat Break-Even
+                        </button>
+                        <div id="sim-output" class="hidden p-5 bg-blue-600/10 border border-blue-500/20 rounded-2xl text-[11px] text-blue-100"></div>
+                    </div>
+
+                    <!-- Refresh Button -->
+                    <button onclick="forceRefresh()" class="w-full bg-emerald-600/20 text-emerald-400 font-black py-3 rounded-xl text-[10px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">
+                        🔄 Obnovit data
                     </button>
                 </div>
-
-                <!-- DCA Simulator -->
-                <div class="space-y-4 pt-4 border-t border-white/5">
-                    <p class="text-[10px] font-bold text-zinc-400 uppercase tracking-wider">DCA Kalkulačka</p>
-                    <div class="grid grid-cols-2 gap-3">
-                        <select id="sim-ticker" class="input-dark py-3" title="Ticker pro DCA simulaci">
-                        </select>
-                        <input type="text" id="sim-amount" value="934" placeholder="Částka $" class="input-dark py-3">
-                    </div>
-                    <button onclick="runProSimulation()" class="w-full bg-zinc-800 text-white font-black py-4 rounded-xl text-[10px] uppercase tracking-[0.2em] hover:bg-zinc-700 transition-all">
-                        📊 Vypočítat Break-Even
-                    </button>
-                    <div id="sim-output" class="hidden p-5 bg-blue-600/10 border border-blue-500/20 rounded-2xl text-[11px] text-blue-100"></div>
-                </div>
-
-                <!-- Refresh Button -->
-                <button onclick="forceRefresh()" class="w-full bg-emerald-600/20 text-emerald-400 font-black py-3 rounded-xl text-[10px] uppercase tracking-widest hover:bg-emerald-600 hover:text-white transition-all">
-                    🔄 Obnovit data
-                </button>
             </div>
-        </div>
+        </aside>
 
     </div>
 
@@ -400,6 +573,27 @@
         let sortOrder = 'desc'; // 'asc' nebo 'desc'
         let stocksData = [];
         let selectedSymbol = null;
+        let filteredStocksData = [];
+        
+        // Filter state
+        let filterState = {
+            regionUS: true,
+            regionEU: true,
+            regionAsia: true,
+            sectorTech: true,
+            sectorFinance: true,
+            sectorConsumer: true,
+            sectorOther: true,
+            rankMin: 0,
+            rankMax: 100,
+            peMin: 0,
+            peMax: 100,
+            mcapMin: 0,
+            mcapMax: 5000,
+            rsiMin: 0,
+            rsiMax: 100,
+            holdingsOnly: false
+        };
 
         // ===== UTILITY FUNKCE =====
         function showError(message) {
@@ -1002,16 +1196,192 @@
         
         function toggleViewMode() {
             viewMode = viewMode === 'table' ? 'cards' : 'table';
-                        document.getElementById('view-mode-text').textContent = viewMode === 'table' ? '📊 Tabulka' : '🔲 Karty';
+            document.getElementById('view-mode-text').textContent = viewMode === 'table' ? '📊 Tabulka' : '🔲 Karty';
+            renderUI();
+        }
+        
+        // ===== FILTER & PRESET FUNKCE =====
+        function applyPreset(preset) {
+            // Deaktivovat všechny presety
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`preset-${preset}`)?.classList.add('active');
+            
+            if (preset === 'deepvalue') {
+                // Deep Value US: Nízké P/E, vysoké ROE, US only
+                filterState = {
+                    regionUS: true, regionEU: false, regionAsia: false,
+                    sectorTech: true, sectorFinance: true, sectorConsumer: true, sectorOther: true,
+                    rankMin: 60, rankMax: 100, peMin: 0, peMax: 25,
+                    mcapMin: 500, mcapMax: 5000, rsiMin: 0, rsiMax: 50,
+                    holdingsOnly: false
+                };
+                document.getElementById('filter-region-us').checked = true;
+                document.getElementById('filter-region-eu').checked = false;
+                document.getElementById('filter-region-asia').checked = false;
+                document.getElementById('filter-rank-min').value = 60;
+                document.getElementById('filter-rank-max').value = 100;
+                document.getElementById('filter-pe-min').value = 0;
+                document.getElementById('filter-pe-max').value = 25;
+                document.getElementById('filter-rsi-max').value = 50;
+            } else if (preset === 'growth') {
+                // Growth EU: Aggressive růst, vyšší valuace
+                filterState = {
+                    regionUS: false, regionEU: true, regionAsia: false,
+                    sectorTech: true, sectorFinance: false, sectorConsumer: true, sectorOther: false,
+                    rankMin: 50, rankMax: 100, peMin: 20, peMax: 100,
+                    mcapMin: 0, mcapMax: 5000, rsiMin: 40, rsiMax: 100,
+                    holdingsOnly: false
+                };
+                document.getElementById('filter-region-us').checked = false;
+                document.getElementById('filter-region-eu').checked = true;
+                document.getElementById('filter-region-asia').checked = false;
+                document.getElementById('filter-sector-tech').checked = true;
+                document.getElementById('filter-sector-finance').checked = false;
+                document.getElementById('filter-rank-min').value = 50;
+                document.getElementById('filter-pe-min').value = 20;
+                document.getElementById('filter-rsi-min').value = 40;
+            } else if (preset === 'momentum') {
+                // Momentum Asia: RSI překoupené, silný momentum
+                filterState = {
+                    regionUS: false, regionEU: false, regionAsia: true,
+                    sectorTech: true, sectorFinance: true, sectorConsumer: true, sectorOther: true,
+                    rankMin: 70, rankMax: 100, peMin: 0, peMax: 100,
+                    mcapMin: 0, mcapMax: 5000, rsiMin: 60, rsiMax: 100,
+                    holdingsOnly: false
+                };
+                document.getElementById('filter-region-us').checked = false;
+                document.getElementById('filter-region-eu').checked = false;
+                document.getElementById('filter-region-asia').checked = true;
+                document.getElementById('filter-rank-min').value = 70;
+                document.getElementById('filter-rsi-min').value = 60;
+            }
+            updateFilterUI();
+            applyFilters();
+        }
+        
+        function resetFilters() {
+            document.querySelectorAll('.preset-btn').forEach(btn => btn.classList.remove('active'));
+            filterState = {
+                regionUS: true, regionEU: true, regionAsia: true,
+                sectorTech: true, sectorFinance: true, sectorConsumer: true, sectorOther: true,
+                rankMin: 0, rankMax: 100, peMin: 0, peMax: 100,
+                mcapMin: 0, mcapMax: 5000, rsiMin: 0, rsiMax: 100,
+                holdingsOnly: false
+            };
+            // Reset UI
+            document.getElementById('filter-region-us').checked = true;
+            document.getElementById('filter-region-eu').checked = true;
+            document.getElementById('filter-region-asia').checked = true;
+            document.getElementById('filter-sector-tech').checked = true;
+            document.getElementById('filter-sector-finance').checked = true;
+            document.getElementById('filter-sector-consumer').checked = true;
+            document.getElementById('filter-sector-other').checked = true;
+            document.getElementById('filter-rank-min').value = 0;
+            document.getElementById('filter-rank-max').value = 100;
+            document.getElementById('filter-pe-min').value = 0;
+            document.getElementById('filter-pe-max').value = 100;
+            document.getElementById('filter-mcap-min').value = 0;
+            document.getElementById('filter-mcap-max').value = 5000;
+            document.getElementById('filter-rsi-min').value = 0;
+            document.getElementById('filter-rsi-max').value = 100;
+            document.getElementById('filter-holdings-only').checked = false;
+            updateFilterUI();
+            applyFilters();
+        }
+        
+        function setRSIRange(min, max) {
+            document.getElementById('filter-rsi-min').value = min;
+            document.getElementById('filter-rsi-max').value = max;
+            filterState.rsiMin = min;
+            filterState.rsiMax = max;
+            updateFilterUI();
+            applyFilters();
+        }
+        
+        function updateFilterUI() {
+            document.getElementById('rank-min-val').textContent = document.getElementById('filter-rank-min').value;
+            document.getElementById('rank-max-val').textContent = document.getElementById('filter-rank-max').value;
+            document.getElementById('pe-min-val').textContent = document.getElementById('filter-pe-min').value;
+            document.getElementById('pe-max-val').textContent = document.getElementById('filter-pe-max').value + '+';
+            document.getElementById('mcap-min-val').textContent = document.getElementById('filter-mcap-min').value;
+            document.getElementById('mcap-max-val').textContent = document.getElementById('filter-mcap-max').value + '+';
+            document.getElementById('rsi-min-val').textContent = document.getElementById('filter-rsi-min').value;
+            document.getElementById('rsi-max-val').textContent = document.getElementById('filter-rsi-max').value;
+        }
+        
+        function applyFilters() {
+            // Aktualizovat filterState z UI
+            filterState.regionUS = document.getElementById('filter-region-us')?.checked ?? true;
+            filterState.regionEU = document.getElementById('filter-region-eu')?.checked ?? true;
+            filterState.regionAsia = document.getElementById('filter-region-asia')?.checked ?? true;
+            filterState.sectorTech = document.getElementById('filter-sector-tech')?.checked ?? true;
+            filterState.sectorFinance = document.getElementById('filter-sector-finance')?.checked ?? true;
+            filterState.sectorConsumer = document.getElementById('filter-sector-consumer')?.checked ?? true;
+            filterState.sectorOther = document.getElementById('filter-sector-other')?.checked ?? true;
+            filterState.rankMin = Number(document.getElementById('filter-rank-min')?.value ?? 0);
+            filterState.rankMax = Number(document.getElementById('filter-rank-max')?.value ?? 100);
+            filterState.peMin = Number(document.getElementById('filter-pe-min')?.value ?? 0);
+            filterState.peMax = Number(document.getElementById('filter-pe-max')?.value ?? 100);
+            filterState.mcapMin = Number(document.getElementById('filter-mcap-min')?.value ?? 0);
+            filterState.mcapMax = Number(document.getElementById('filter-mcap-max')?.value ?? 5000);
+            filterState.rsiMin = Number(document.getElementById('filter-rsi-min')?.value ?? 0);
+            filterState.rsiMax = Number(document.getElementById('filter-rsi-max')?.value ?? 100);
+            filterState.holdingsOnly = document.getElementById('filter-holdings-only')?.checked ?? false;
+            
+            updateFilterUI();
+            
+            // Aplikovat filtry na stocksData
+            filteredStocksData = stocksData.filter(stock => {
+                // Region filter (jednoduchá heuristika podle tickeru)
+                const isUS = ['MU', 'NOW', 'MSFT', 'SMCI', 'APLD', 'NBIS', 'PLTR', 'IONQ', 'RKLB', 'LUNR', 'OKLO', 'ISRG', 'TSLA', 'BEAM', 'MELI', 'AFRM', 'UPST', 'CRWD', 'APP', 'SNOW', 'NU', 'TTD', 'NET', 'GRAB', 'ADBE', 'DUOL', 'MQ', 'DAVE', 'BKKT', 'FOUR', 'FLYW', 'TOST', 'HOOD', 'LMND', 'COIN', 'GEN'].includes(stock.symbol);
+                const isEU = ['ASML', 'ASM', 'ADYEN', 'ALE', 'EVD', 'CEZ', 'SPPW'].includes(stock.symbol);
+                const isAsia = ['TSM'].includes(stock.symbol);
+                
+                if ((!filterState.regionUS && isUS) || (!filterState.regionEU && isEU) || (!filterState.regionAsia && isAsia)) {
+                    return false;
+                }
+                
+                // Rank filter
+                if (stock.colorRank < filterState.rankMin || stock.colorRank > filterState.rankMax) {
+                    return false;
+                }
+                
+                // P/E filter
+                if (stock.pe > 0 && (stock.pe < filterState.peMin || stock.pe > filterState.peMax)) {
+                    return false;
+                }
+                
+                // Market cap filter (v miliardách)
+                const mcapBil = stock.marketCap / 1e9;
+                if (mcapBil > 0 && (mcapBil < filterState.mcapMin || mcapBil > filterState.mcapMax)) {
+                    return false;
+                }
+                
+                // RSI filter
+                if (stock.rsi !== null && (stock.rsi < filterState.rsiMin || stock.rsi > filterState.rsiMax)) {
+                    return false;
+                }
+                
+                // Holdings only filter
+                if (filterState.holdingsOnly && (myData[stock.symbol]?.shares || 0) === 0) {
+                    return false;
+                }
+                
+                return true;
+            });
+            
+            document.getElementById('filtered-count').textContent = filteredStocksData.length;
             renderUI();
         }
         
         function renderUI() {
             const container = document.getElementById('stock-container');
+            const dataToRender = filteredStocksData.length > 0 ? filteredStocksData : stocksData;
+            
             if (viewMode === 'table') {
-                container.innerHTML = renderTableView(stocksData);
+                container.innerHTML = renderTableView(dataToRender);
             } else {
-                container.innerHTML = stocksData.map(s => renderStockCard(s)).join('');
+                container.innerHTML = dataToRender.map(s => renderStockCard(s)).join('');
             }
         }
         
@@ -1102,12 +1472,11 @@
             const panel = document.getElementById('stock-detail-panel');
             const stock = stocksData.find(s => s.symbol === symbol);
             if (!stock) {
-                panel.classList.add('hidden');
+                panel.style.display = 'none';
                 return;
             }
 
             selectedSymbol = symbol;
-            updateStickyDetail(symbol);
             const position = myData[symbol] || { avg: 0, shares: 0 };
             const invested = position.avg * position.shares;
             const currentValue = stock.price * position.shares;
@@ -1169,7 +1538,7 @@
                 </div>
             `;
 
-            panel.classList.remove('hidden');
+            panel.style.display = 'block';
         }
 
         async function updateTerminal() {
@@ -1201,7 +1570,8 @@
             }
             
             if (stocksData.length > 0) {
-                renderUI();
+                filteredStocksData = stocksData; // Inicializovat
+                applyFilters(); // Aplikovat filtry a vyrenderovat
                 renderVerdict(stocksData);
 
                 if (selectedSymbol && stocksData.some(s => s.symbol === selectedSymbol)) {
@@ -1211,9 +1581,9 @@
                     if (firstHeld) {
                         showStockDetail(firstHeld.symbol);
                     } else if (stocksData.length > 0) {
-                        // Pokud žádná pozice, zobraz sticky pro první ticker
+                        // Pokud žádná pozice, zobraz detail pro první ticker
                         selectedSymbol = stocksData[0].symbol;
-                        updateStickyDetail(stocksData[0].symbol);
+                        showStockDetail(stocksData[0].symbol);
                     }
                 }
 
